@@ -9,5 +9,5 @@
     "builtin": true,
     "node": true
   },
-  "ignorePatterns": ["install/**"]
+  "ignorePatterns": ["skills/**", "agents/**", "rules/**", "adr/**"]
 }

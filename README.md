@@ -1,11 +1,15 @@
 # Agents0 <!-- omit in toc -->
 
-_The skills, agents, rules and tooling that deliver the [Dev0](https://github.com/tforster/dev0) workflow through Claude Code, kept in sync across machines._
+_The skills, agents, rules and hooks that deliver the [Dev0](https://github.com/tforster/dev0) workflow, as a Claude Code plugin marketplace._
 
 ## Table of Contents <!-- omit in toc -->
 
 - [1. About](#1-about)
 - [2. Quick Start](#2-quick-start)
+  - [2.1. Install](#21-install)
+  - [2.2. Edit loop](#22-edit-loop)
+  - [2.3. Pin policy](#23-pin-policy)
+  - [2.4. Development](#24-development)
 - [3. Documentation](#3-documentation)
 - [4. Known Issues](#4-known-issues)
 - [5. Change Log](#5-change-log)
@@ -14,42 +18,65 @@ _The skills, agents, rules and tooling that deliver the [Dev0](https://github.co
 
 ## 1. About
 
-Agents0 is the toolkit the Dev0 workflow is delivered through: a personal, single-harness (Claude-only) repo that keeps `install/{skills,agents,rules}` in sync across machines and symlinks them into `~/.claude/`.
+Agents0 is the toolkit the Dev0 workflow is delivered through: a personal, Claude-only Claude Code marketplace whose `agents0` plugin carries the skills, agents, rules, hooks and ADRs, and which pins the third-party plugins the workflow uses.
 
-[Dev0](https://github.com/tforster/dev0) is the philosophy -- what simplicity means and how work is divided between architects and doers. Agents0 progressively enhances it for coding agents; Dev0 never depends on Agents0. If you want Dev0 without this toolkit, dev0's [`prompt.md`](https://github.com/tforster/dev0/blob/main/prompt.md) is the standalone alternative: one prompt, no install.
+[Dev0](https://github.com/tforster/dev0) is the philosophy -- what simplicity means and how work is divided between architects and doers. Agents0 progressively enhances it for coding agents; Dev0 never depends on Agents0.
 
 The scope test for anything added here: does it exist only to serve the Dev0 workflow? **In:** agentic traits (skills, agents, rules, hooks, ADRs), worktree shell functions, project templates. **Out, to the dotfiles repo:** general shell and machine setup. **Out, to [dev0](https://github.com/tforster/dev0):** the philosophy itself.
 
 **Key points:**
 
-- One canonical copy of skills, agents, and rules, git-synced across machines
-- Symlinked wholesale into a harness's config directory -- no per-category special-casing
-- Zero runtime dependencies; `npm install` is only for dev tooling
+- The repo root is both the `agents0` marketplace (`.claude-plugin/marketplace.json`) and the `agents0` plugin (`.claude-plugin/plugin.json`)
+- Installed and updated with `claude plugin`; no installer of its own
+- Plugins cannot ship rules, so each file in `rules/` is injected by its own SessionStart and SubagentStart hooks
+- Third-party skills come from their authors' plugins, pinned in the marketplace, not vendored copies
 - Deliberately minimal: "simple and good enough for one person" over generality
 
-It began as `capabilities`, scaffolding for [trAIt](https://github.com/tforster/trait), and was then `dev0` until the philosophy and the toolkit split. See [`docs/explanation/architecture.md`](./docs/explanation/architecture.md) for the full design rationale and [`docs/reference/prd.md`](./docs/reference/prd.md) for the original design discussion.
+It began as `capabilities`, scaffolding for [trAIt](https://github.com/tforster/trait), and was then `dev0` until the philosophy and the toolkit split. See [`docs/explanation/architecture.md`](./docs/explanation/architecture.md) for the design rationale.
 
 ## 2. Quick Start
 
-**Prerequisites:** Node.js 24+ (npm only for development)
+### 2.1. Install
 
 ```bash
-# Clone, then link install/{skills,agents,rules} into ~/.claude/ and bin/agents0 into ~/.local/bin
-git clone https://github.com/tforster/agents0.git
-cd agents0
-node bin/agents0 install
-
-# Check what's currently linked
-agents0 status
-
-# Pull/push changes across machines
-agents0 sync
-
-# Scaffold a new skill under install/skills/
-agents0 new skill <name>
+claude plugin marketplace add tforster/agents0
+claude plugin install agents0@agents0
+# the pinned third-party plugins, as needed
+for plugin in mattpocock-skills tare c4-architecture; do claude plugin install "$plugin@agents0"; done
 ```
 
-For development:
+Or declare both in `~/.claude/settings.json`. The `extraKnownMarketplaces` key must equal the marketplace's own name, `agents0`, or the marketplace is cloned but nothing installs:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "agents0": { "source": { "source": "github", "repo": "tforster/agents0" } }
+  },
+  "enabledPlugins": {
+    "agents0@agents0": true
+  }
+}
+```
+
+Cloudflare's skills are not in this marketplace; add them to a project that needs them with `claude plugin marketplace add cloudflare/skills` and `claude plugin install cloudflare@cloudflare --scope project`.
+
+Either way, skills are available from the next session. Plugin skills and agents carry the plugin prefix, such as `agents0:markdown`.
+
+### 2.2. Edit loop
+
+The plugin has no `version`, so Claude Code keys its cache by commit and every pushed commit is an update:
+
+1. Commit and push the change
+2. `claude plugin marketplace update agents0 && claude plugin update agents0@agents0`
+3. Restart Claude Code
+
+While developing, `claude --plugin-dir <path-to-this-repo>` loads the working copy in place for one session, with no commit.
+
+### 2.3. Pin policy
+
+Pin each third-party plugin to a release tag (`ref`) and that tag's 40-character commit (`sha`). Upstreams with no tags are pinned to a commit alone. A third-party plugin that sets `version` is cached by that version, so moving its pin to a commit with the same version is a no-op for `claude plugin update`; reinstall it instead with `claude plugin uninstall <plugin>@agents0` and `claude plugin install <plugin>@agents0`.
+
+### 2.4. Development
 
 ```bash
 npm install                           # dev tooling only
@@ -58,6 +85,7 @@ npm run lint                          # oxlint
 npm run format                        # oxfmt --write
 npm run format:check                  # oxfmt --check (no write)
 npm run typecheck                     # tsc --noEmit -p jsconfig.json
+claude plugin validate .              # marketplace and plugin manifests
 ```
 
 ## 3. Documentation

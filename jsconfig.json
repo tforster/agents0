@@ -9,6 +9,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["bin/**/*", "lib/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "install"]
+  "include": ["hooks/**/*", "tests/**/*"],
+  "exclude": ["node_modules"]
 }

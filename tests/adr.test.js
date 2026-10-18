@@ -1,4 +1,4 @@
-// adr.test.js — guards the shape of the cross-project ADRs in install/adr/
+// adr.test.js — guards the shape of the cross-project ADRs in adr/
 //
 // These ADRs are installed into every project and read at the moment of a decision, by agents
 // that have none of the design discussion behind them. So each must stand alone (D23), and each
@@ -10,10 +10,10 @@ import { describe, it } from "node:test";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
-const adrDir = path.resolve(import.meta.dirname, "..", "install", "adr");
+const adrDir = path.resolve(import.meta.dirname, "..", "adr");
 
 /**
- * Reads every ADR in install/adr/, skipping the generated index.
+ * Reads every ADR in adr/, skipping the generated index.
  *
  * @returns {Promise<{ name: string, content: string }[]>} ADRs in filename order.
  */
@@ -25,7 +25,7 @@ async function readAdrs() {
 describe("cross-project ADRs", () => {
   it("DEV0-20: files are NNNN-slug.md, numbered from 0001 without gaps", async () => {
     const adrs = await readAdrs();
-    assert.ok(adrs.length > 0, "install/adr/ has no ADRs");
+    assert.ok(adrs.length > 0, "adr/ has no ADRs");
     adrs.forEach(({ name }, index) => {
       assert.match(name, /^\d{4}-[a-z0-9]+(-[a-z0-9]+)*\.md$/, `${name} is not NNNN-slug.md`);
       assert.strictEqual(name.slice(0, 4), String(index + 1).padStart(4, "0"), `${name} breaks the numbering`);

@@ -1,0 +1,41 @@
+{
+  "name": "agents0",
+  "description": "Agents0 and the third-party plugins the Dev0 workflow uses, each pinned to a commit.",
+  "owner": { "name": "Troy Forster", "url": "https://github.com/tforster" },
+  "plugins": [
+    {
+      "name": "agents0",
+      "source": "./",
+      "description": "Skills, agents, rules, hooks and ADRs that deliver the Dev0 workflow through Claude Code."
+    },
+    {
+      "name": "mattpocock-skills",
+      "source": {
+        "source": "github",
+        "repo": "mattpocock/skills",
+        "ref": "v1.3.1",
+        "sha": "24fe0ef7737efae15c87225755e9f6f5965e4888"
+      },
+      "description": "Matt Pocock's engineering skills: grilling, TDD, code review, domain modelling and more."
+    },
+    {
+      "name": "tare",
+      "source": {
+        "source": "github",
+        "repo": "kelviq/tare",
+        "sha": "03159f2c354e52e5309b0e0d7582b32a5c0d00d0"
+      },
+      "description": "Diagnose Claude Code usage limits from the session logs on disk."
+    },
+    {
+      "name": "c4-architecture",
+      "source": {
+        "source": "git-subdir",
+        "url": "softaworks/agent-toolkit",
+        "path": "dist/plugins/c4-architecture",
+        "sha": "3027f20f3181758385a1bb8c022d4041dfb4de84"
+      },
+      "description": "C4 model architecture diagrams in Mermaid."
+    }
+  ]
+}
