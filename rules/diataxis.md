@@ -1,7 +1,3 @@
----
-applyTo: "docs/**"
----
-
 # Diátaxis Documentation Standards <!-- omit in toc -->
 
 ## Table of Contents <!-- omit in toc -->

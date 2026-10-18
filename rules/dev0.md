@@ -11,7 +11,20 @@ Default to the direct thing; earn the indirection with a counted trigger.
 - **Write docs only when the story asks for them or a public interface changed.**
 - Before a dependency or architecture choice, read the ADRs in `${CLAUDE_PLUGIN_ROOT}/adr/`; their file names are the index.
 
-## 2. Code rules
+## 2. Below the blueprint
+
+The blueprint leaves small choices to you: a function body, a name, a loop or a map. Settle each with Dev0's six tests, scaled to the code in front of you. A choice passes all six; a strong pass never buys off a failure.
+
+- **Less** -- fewer names, branches, files and lines that can go wrong.
+- **Separate** -- each function does one thing, behind its signature.
+- **Legibility** -- a reader predicts it without running it. Clever is not short.
+- **Native** -- the language and platform before a helper you write.
+- **Beneficiary** -- serve the user's behaviour, not your convenience.
+- **Control** -- newest features where the project owns the runtime, conservative where it does not.
+
+The tests choose within the blueprint, never against it. If passing them means touching another module, a public interface or a dependency, that is the architect's call: stop and ask. The code rules below are these tests applied to recurring cases; where a rule speaks, follow it.
+
+## 3. Code rules
 
 1. **Validate at the boundary, then trust.** Inside a module, arguments are the type their signature or JSDoc declares -- because bad input arrives at the edge, and re-checking inside buries logic in defensive noise.
 2. **Let errors propagate to the boundary.** Catch only to add information, convert to a `Response`, or release a resource -- because one boundary handler decides status and logging consistently.
@@ -25,7 +38,7 @@ Default to the direct thing; earn the indirection with a counted trigger.
 
 Rules 10-12 are JavaScript's, in the `javascript` skill.
 
-## 3. Done
+## 4. Done
 
 Beyond the checks the hooks run, a story is done when:
 

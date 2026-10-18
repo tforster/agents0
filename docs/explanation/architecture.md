@@ -53,7 +53,7 @@ The repo root is the plugin root, so the plugin directories sit at the top level
 
 ## 4. Marketplace and Plugin
 
-`.claude-plugin/marketplace.json` names the marketplace `agents0` and lists the `agents0` plugin with `"source": "./"`. Install is `claude plugin marketplace add tforster/agents0`, then `claude plugin install agents0@agents0`; the README has the settings form and the edit loop.
+`.claude-plugin/marketplace.json` names the marketplace `agents0` and lists the `agents0` plugin with `"source": "./"`. Install is `claude plugin marketplace add tforster/agents0`, then `claude plugin install agents0@agents0`; the README has the settings form, and [Develop Agents0](../how-to/develop-agents0.md) the edit loop.
 
 `plugin.json` sets no `version` on purpose. With a version, Claude Code caches by it and `claude plugin update` ignores every commit until the version changes. Without one, the cache is keyed by commit, so each pushed commit is an update and nothing needs bumping. `claude plugin validate` warns about the missing version; the warning is expected.
 
