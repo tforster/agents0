@@ -1,4 +1,4 @@
-// config.test.js — behavioural tests for dev0.json loading, validation and ~ expansion
+// config.test.js — behavioural tests for agents0.json loading, validation and ~ expansion
 
 // System dependencies
 import { strict as assert } from "node:assert";
@@ -17,8 +17,8 @@ describe("loadConfig", () => {
   let configPath;
 
   beforeEach(async () => {
-    root = await mkdtemp(path.join(tmpdir(), "dev0-config-"));
-    configPath = path.join(root, "dev0.json");
+    root = await mkdtemp(path.join(tmpdir(), "agents0-config-"));
+    configPath = path.join(root, "agents0.json");
   });
 
   afterEach(async () => {
@@ -39,11 +39,16 @@ describe("loadConfig", () => {
   });
 
   it("expands ~ in the optional bin path and leaves it undefined when absent", async () => {
-    await writeFile(configPath, JSON.stringify({ bin: "~/.local/bin/dev0", harnesses: {} }));
-    assert.strictEqual((await loadConfig(configPath)).bin, path.join(homedir(), ".local", "bin", "dev0"));
+    await writeFile(configPath, JSON.stringify({ bin: "~/.local/bin/agents0", harnesses: {} }));
+    assert.strictEqual((await loadConfig(configPath)).bin, path.join(homedir(), ".local", "bin", "agents0"));
 
     await writeFile(configPath, JSON.stringify({ harnesses: {} }));
     assert.strictEqual((await loadConfig(configPath)).bin, undefined);
+  });
+
+  it("DEV0-66 AC1: the toolkit's own agents0.json links the CLI as ~/.local/bin/agents0", async () => {
+    const toolkitConfig = path.resolve(import.meta.dirname, "..", "agents0.json");
+    assert.strictEqual((await loadConfig(toolkitConfig)).bin, path.join(homedir(), ".local", "bin", "agents0"));
   });
 
   it("rejects a missing file with a clear message", async () => {

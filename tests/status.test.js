@@ -1,4 +1,4 @@
-// status.test.js — behavioural tests for dev0 status
+// status.test.js — behavioural tests for agents0 status
 
 // System dependencies
 import { strict as assert } from "node:assert";
@@ -12,13 +12,13 @@ import { install } from "../lib/install.js";
 import { status } from "../lib/status.js";
 
 /**
- * Builds an isolated fixture: a fake dev0 repo root (with populated
+ * Builds an isolated fixture: a fake agents0 repo root (with populated
  * install/{skills,agents,rules} content) and a fake home directory to inspect.
  *
  * @returns {Promise<{root: string, toolkitRoot: string, home: string}>} Fixture paths.
  */
 async function makeFixture() {
-  const root = await mkdtemp(path.join(tmpdir(), "dev0-status-"));
+  const root = await mkdtemp(path.join(tmpdir(), "agents0-status-"));
   const toolkitRoot = path.join(root, "repo");
   const home = path.join(root, "home");
   await mkdir(path.join(toolkitRoot, "install", "skills"), { recursive: true });

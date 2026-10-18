@@ -1,6 +1,6 @@
-# dev0 Documentation <!-- omit in toc -->
+# Agents0 Documentation <!-- omit in toc -->
 
-Documentation for `dev0`, organised using the [Diátaxis framework](https://diataxis.fr/).
+Documentation for Agents0, the toolkit that delivers [Dev0](https://github.com/tforster/dev0), organised using the [Diátaxis framework](https://diataxis.fr/).
 
 ## Table of Contents <!-- omit in toc -->
 
