@@ -1,4 +1,4 @@
-// sync.test.js — behavioural tests for dev0 sync (jj fetch -> integrate -> describe -> push)
+// sync.test.js — behavioural tests for agents0 sync (jj fetch -> integrate -> describe -> push)
 //
 // jj talking to a real remote is a genuine external dependency, so the jj
 // runner is injected and faked here rather than exercised for real.

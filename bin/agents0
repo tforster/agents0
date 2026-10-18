@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// dev0 — CLI entry point (see PRD §10 for subcommand spec)
+// agents0 — CLI entry point (see PRD §10 for subcommand spec)
 //
-// Bootstrap on a new machine: `git clone`, then `node bin/dev0 install`, which
-// links this file into ~/.local/bin (dev0.json "bin"). No install.sh (D67).
+// Bootstrap on a new machine: `git clone`, then `node bin/agents0 install`, which
+// links this file into ~/.local/bin (agents0.json "bin"). No install.sh (D67).
 
 // System dependencies
 import { fileURLToPath } from "node:url";
@@ -24,11 +24,11 @@ const repoRoot = path.resolve(scriptDir, "..");
 const [, , command, arg1, arg2] = process.argv;
 const harnessName = arg1;
 const usage = [
-  "Usage: dev0 install [harness]     link every harness (or one) and the dev0 CLI",
-  "       dev0 uninstall [harness]",
-  "       dev0 status",
-  "       dev0 sync",
-  "       dev0 new skill <name>",
+  "Usage: agents0 install [harness]     link every harness (or one) and the agents0 CLI",
+  "       agents0 uninstall [harness]",
+  "       agents0 status",
+  "       agents0 sync",
+  "       agents0 new skill <name>",
 ].join("\n");
 
 /**
@@ -38,16 +38,16 @@ const usage = [
  */
 async function main() {
   // Checked here rather than via package.json "engines", which only npm reads;
-  // bootstrap runs `node bin/dev0` directly.
+  // bootstrap runs `node bin/agents0` directly.
   const nodeMajor = Number(process.versions.node.split(".")[0]);
   if (nodeMajor < minimumNodeMajor) {
-    console.error(`dev0 needs Node ${minimumNodeMajor} or later; this is Node ${process.versions.node}.`);
+    console.error(`agents0 needs Node ${minimumNodeMajor} or later; this is Node ${process.versions.node}.`);
     process.exitCode = 1;
     return;
   }
 
   if (command === "status") {
-    const config = await loadConfig(path.join(repoRoot, "dev0.json"));
+    const config = await loadConfig(path.join(repoRoot, "agents0.json"));
     const report = await status({ config, toolkitRoot: repoRoot });
     printStatus(report);
     return;
@@ -71,7 +71,7 @@ async function main() {
     return;
   }
 
-  const config = await loadConfig(path.join(repoRoot, "dev0.json"));
+  const config = await loadConfig(path.join(repoRoot, "agents0.json"));
 
   const scope = harnessName ?? "all harnesses";
   if (command === "install") {
@@ -88,13 +88,13 @@ async function main() {
  * Tells the user when the directory the CLI was linked into isn't on PATH
  * yet, e.g. a ~/.local/bin that ~/.profile only adds at the next login.
  *
- * @param {string} binDirectory - Directory holding the dev0 symlink.
+ * @param {string} binDirectory - Directory holding the agents0 symlink.
  * @returns {void}
  */
 function warnIfNotOnPath(binDirectory) {
   const pathEntries = (process.env.PATH ?? "").split(path.delimiter).map((entry) => path.resolve(entry));
   if (pathEntries.includes(path.resolve(binDirectory))) return;
-  console.log(`Note: ${binDirectory} is not on PATH yet. Add it, or open a new login shell, to run \`dev0\` directly.`);
+  console.log(`Note: ${binDirectory} is not on PATH yet. Add it, or open a new login shell, to run \`agents0\` directly.`);
 }
 
 /**

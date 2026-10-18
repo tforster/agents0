@@ -1,10 +1,10 @@
 {
-  "name": "dev0",
+  "name": "agents0",
   "version": "0.1.0",
-  "description": "The Dev0 toolkit: skills, agents, rules and tooling that deliver the Dev0 workflow, synced across machines.",
+  "description": "Agents0: skills, agents, rules and tooling that deliver the Dev0 workflow through Claude Code, synced across machines.",
   "license": "MIT",
   "bin": {
-    "dev0": "./bin/dev0"
+    "agents0": "./bin/agents0"
   },
   "type": "module",
   "scripts": {

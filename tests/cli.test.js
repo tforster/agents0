@@ -1,4 +1,4 @@
-// cli.test.js — end-to-end tests for bin/dev0 as an actual executable,
+// cli.test.js — end-to-end tests for bin/agents0 as an actual executable,
 // including invocation via a symlink (as it will be from ~/bin in real use).
 
 // System dependencies
@@ -16,17 +16,17 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 /**
  * Builds a standalone copy of the CLI (bin + lib, no node_modules)
- * plus a fake dev0.json and install/{skills,agents,rules}, isolated
+ * plus a fake agents0.json and install/{skills,agents,rules}, isolated
  * from the real repo.
  *
  * @returns {Promise<{root: string, cliPath: string, home: string}>} Fixture paths.
  */
 async function makeFixture() {
-  const root = await mkdtemp(path.join(tmpdir(), "dev0-cli-"));
+  const root = await mkdtemp(path.join(tmpdir(), "agents0-cli-"));
   await cp(path.join(repoRoot, "lib"), path.join(root, "lib"), { recursive: true });
   await mkdir(path.join(root, "bin"), { recursive: true });
-  await cp(path.join(repoRoot, "bin", "dev0"), path.join(root, "bin", "dev0"));
-  await chmod(path.join(root, "bin", "dev0"), 0o755);
+  await cp(path.join(repoRoot, "bin", "agents0"), path.join(root, "bin", "agents0"));
+  await chmod(path.join(root, "bin", "agents0"), 0o755);
 
   await mkdir(path.join(root, "install", "skills"), { recursive: true });
   await mkdir(path.join(root, "install", "agents"), { recursive: true });
@@ -34,9 +34,9 @@ async function makeFixture() {
 
   const home = path.join(root, "home");
   await writeFile(
-    path.join(root, "dev0.json"),
+    path.join(root, "agents0.json"),
     JSON.stringify({
-      bin: path.join(home, "bin", "dev0"),
+      bin: path.join(home, "bin", "agents0"),
       harnesses: {
         testharness: {
           skills: path.join(home, ".testharness", "skills"),
@@ -47,10 +47,10 @@ async function makeFixture() {
     })
   );
 
-  return { root, cliPath: path.join(root, "bin", "dev0"), home };
+  return { root, cliPath: path.join(root, "bin", "agents0"), home };
 }
 
-describe("bin/dev0", () => {
+describe("DEV0-66 AC1: bin/agents0", () => {
   it("installs a harness end-to-end when run directly", async () => {
     const { root, cliPath, home } = await makeFixture();
 
@@ -67,7 +67,7 @@ describe("bin/dev0", () => {
 
   it("works when invoked via a symlink, as it will be from ~/bin", async () => {
     const { root, cliPath, home } = await makeFixture();
-    const symlinkedCli = path.join(root, "dev0-symlink");
+    const symlinkedCli = path.join(root, "agents0-symlink");
     await symlink(cliPath, symlinkedCli);
 
     const { stdout } = await run(process.execPath, [symlinkedCli, "install", "testharness"]);
@@ -97,7 +97,7 @@ describe("bin/dev0", () => {
   it("exits non-zero with a usage message when given no arguments", async () => {
     const { root, cliPath } = await makeFixture();
 
-    await assert.rejects(run(process.execPath, [cliPath]), /Usage: dev0/);
+    await assert.rejects(run(process.execPath, [cliPath]), /Usage: agents0/);
 
     await rm(root, { recursive: true, force: true });
   });
@@ -133,7 +133,7 @@ describe("bin/dev0", () => {
     assert.match(stdout, /Installed all harnesses/);
     assert.match(stdout, /is not on PATH yet/);
 
-    const linkedCli = path.join(home, "bin", "dev0");
+    const linkedCli = path.join(home, "bin", "agents0");
     assert.ok((await lstat(linkedCli)).isSymbolicLink());
     assert.ok((await lstat(path.join(home, ".testharness", "skills"))).isSymbolicLink());
 
@@ -155,7 +155,7 @@ describe("bin/dev0", () => {
 
   it("uninstalling one harness keeps the CLI link; uninstalling everything removes it", async () => {
     const { root, cliPath, home } = await makeFixture();
-    const linkedCli = path.join(home, "bin", "dev0");
+    const linkedCli = path.join(home, "bin", "agents0");
 
     await run(process.execPath, [cliPath, "install"]);
     await run(process.execPath, [cliPath, "uninstall", "testharness"]);
@@ -176,7 +176,7 @@ describe("bin/dev0", () => {
       run(process.execPath, ["--import", fakeOldNode, cliPath, "install"]),
       /needs Node 24 or later; this is Node 18\.0\.0/
     );
-    await assert.rejects(lstat(path.join(home, "bin", "dev0")), /ENOENT/);
+    await assert.rejects(lstat(path.join(home, "bin", "agents0")), /ENOENT/);
 
     await rm(root, { recursive: true, force: true });
   });

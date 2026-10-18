@@ -31,6 +31,7 @@ Use kebab-case for all Markdown file names: `database-setup.md`, `how-to-deploy.
 - Each `docs/` category folder has a `README.md` indexing its documents; update it whenever a document is added or removed
 
 > [!IMPORTANT]
+>
 > Never hand-calculate section numbers or Table of Contents anchors. Run the `markdown` skill's scripts — `number-sections.js` first, then `update-toc.js`.
 
 ## 4. Formatting
@@ -39,6 +40,7 @@ Use kebab-case for all Markdown file names: `database-setup.md`, `how-to-deploy.
 - Blank lines around headings, fenced code blocks, and lists
 - Do not use `---` as a section divider; use headings
 - Do not hard-wrap prose. Wrapping is the renderer's job, not the file's
+- A callout has an empty `>` line between its marker and its text (`> [!NOTE]`, `>`, `> Text`). Without it, a formatter that unwraps prose folds the marker onto the text and GitHub stops rendering the callout
 - Diagrams are Mermaid, in the Markdown. C4 for architecture; sequence, flow or state diagrams where they convey the information better
 
 These correspond to markdownlint MD022 (headings surrounded by blank lines), MD025 (one top-level heading), MD031 (fences surrounded by blank lines), MD032 (lists surrounded by blank lines), and MD040 (fences have a language).
