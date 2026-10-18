@@ -41,7 +41,7 @@ describe("toolkit documentation", () => {
   });
 
   it("DEV0-66 AC3: every callout in the markdown rule and skill has an empty > line after its marker", async () => {
-    for (const file of ["install/rules/markdown.md", "install/skills/markdown/SKILL.md"]) {
+    for (const file of ["rules/markdown.md", "skills/markdown/SKILL.md"]) {
       const lines = (await readFile(path.join(repoRoot, file), "utf8")).split("\n");
       lines.forEach((line, index) => {
         const marker = line.match(/^> \[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/)?.[0];

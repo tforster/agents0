@@ -6,5 +6,5 @@
   "trailingComma": "es5",
   "arrowParens": "always",
   "endOfLine": "lf",
-  "ignorePatterns": ["install/**", "docs/scratch/**"]
+  "ignorePatterns": ["skills/**", "agents/**", "rules/**", "adr/**", "docs/scratch/**"]
 }

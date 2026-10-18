@@ -1,6 +1,6 @@
 # Agent Context Map <!-- omit in toc -->
 
-What an agent -- a session you start, a subagent, or a loop worker -- has in context, in what order it arrives, and what pulls each further file in. Each box is marked as it stands on 2026-10-04: **exists**, **changing** in DEV0-18, or **planned**, with the story that builds it. Decision IDs refer to `2026-09-11-dev0-framework.md`.
+What an agent -- a session you start, a subagent, or a loop worker -- has in context, in what order it arrives, and what pulls each further file in. Each box is marked as it stands on 2026-10-18, after DEV0-67 moved Agents0 to a Claude Code plugin: **exists**, or **planned** with the story that builds it. Decision IDs refer to `2026-09-11-dev0-framework.md`.
 
 ## Table of Contents <!-- omit in toc -->
 
@@ -15,12 +15,10 @@ What an agent -- a session you start, a subagent, or a loop worker -- has in con
 ```mermaid
 flowchart LR
   exists["exists"]:::exists
-  changing["changing in DEV0-18"]:::changing
   planned["planned, story key shown"]:::planned
   decision{"decision"}
 
   classDef exists fill:#dcfce7,stroke:#16a34a,color:#14532d
-  classDef changing fill:#fef3c7,stroke:#d97706,color:#78350f
   classDef planned fill:#f1f5f9,stroke:#64748b,color:#334155,stroke-dasharray:5 3
 ```
 
@@ -32,21 +30,23 @@ Everything in §2 is paid by **every** agent, including each subagent and loop w
 flowchart TD
   start(["Session, subagent or loop worker starts"]) --> harness["Harness baseline<br/>system prompt, tool definitions<br/>outside our control"]:::exists
   harness --> globalMd["~/.claude/CLAUDE.md<br/>one line"]:::exists
-  globalMd --> rules["~/.claude/rules/<br/>dev0.md: D1, gates, code rules, Done<br/>code-style.md: naming and casing"]:::changing
-  rules --> memory["Auto memory MEMORY.md<br/>per project index"]:::exists
+  globalMd --> memory["Auto memory MEMORY.md<br/>per project index"]:::exists
   memory --> rootMd["Project root CLAUDE.md<br/>what this system is called"]:::exists
   rootMd --> glossaryMap["GLOSSARY-MAP.md via @ import<br/>published language (D19)<br/>planned"]:::planned
   rootMd --> agentSkills["Agent skills block<br/>three pointers into docs/agents/<br/>6.2"]:::planned
-  rootMd --> pointers["Skill and agent descriptions<br/>install/skills, install/agents, plugins<br/>user-only skills excluded (A4, 5.8)"]:::exists
+  rootMd --> pointers["Skill and agent descriptions<br/>agents0: plugin, pinned third-party plugins<br/>user-only skills excluded (A4, 5.8)"]:::exists
   pointers --> mcp["MCP tool names<br/>today global; per project via .mcp.json (5.6)"]:::exists
-  mcp --> ready(["Ready for the first prompt"])
+  mcp --> subagent{"Started by<br/>the Agent tool?"}
+  subagent -- no --> sessionRules["Rules, one SessionStart hook each<br/>agents0 rules/: dev0.md, code-style.md, javascript.md,<br/>testing.md, markdown.md, diataxis.md<br/>each under 10,000 characters"]:::exists
+  subagent -- yes --> subagentRules["Same rules, one SubagentStart hook each"]:::exists
+  sessionRules --> ready(["Ready for the first prompt"])
+  subagentRules --> ready
 
   classDef exists fill:#dcfce7,stroke:#16a34a,color:#14532d
-  classDef changing fill:#fef3c7,stroke:#d97706,color:#78350f
   classDef planned fill:#f1f5f9,stroke:#64748b,color:#334155,stroke-dasharray:5 3
 ```
 
-Today `~/.claude/rules/` also carries `javascript.md`, `testing.md`, `markdown.md` and `diataxis.md` -- about 4.6k tokens in every agent. DEV0-18 rewrites `philosophy.md` as `dev0.md` (D88), without its language-specific rules; 2.6 and 2.7 demote the rest into skills.
+Plugins cannot ship rules, so the `agents0` plugin injects each file in `rules/` through its own hook: hook output over 10,000 characters is cut to a preview. A subagent started with the Agent tool gets no SessionStart context, so each rule has a SubagentStart hook too. The six rules are about 4.3k tokens in every agent. 2.6 and 2.7 demote the language rules into skills.
 
 ## 3. Loaded on demand, during work
 
@@ -60,14 +60,14 @@ flowchart TD
 
   touchFile -- yes --> cascade["Every CLAUDE.md on the path<br/>e.g. workspaces/ then workspaces/iam/<br/>mechanism exists (A1)"]:::exists
   cascade --> language{"Which<br/>language?"}
-  language -- JavaScript --> jsSkill["javascript skill<br/>stub with rules 10-12 in DEV0-18<br/>rules files folded in by 2.6"]:::changing
-  language -- shell --> shellSkill["shell skill<br/>DEV0-18"]:::changing
-  language -- "HTML, CSS, Handlebars" --> webSkill["web-ui skill<br/>DEV0-18"]:::changing
-  language -- Markdown --> mdSkill["markdown skill"]:::exists
+  language -- JavaScript --> jsSkill["agents0:javascript skill<br/>rules 10-12<br/>rules/javascript.md folded in by 2.6"]:::exists
+  language -- shell --> shellSkill["agents0:shell skill"]:::exists
+  language -- "HTML, CSS, Handlebars" --> webSkill["agents0:web-ui skill"]:::exists
+  language -- Markdown --> mdSkill["agents0:markdown skill"]:::exists
   language -- PHP --> phpSkill["php skill<br/>2.8"]:::planned
 
-  choice -- yes --> adrIndex["ADR index<br/>~/.claude/adr/README.md<br/>2.5"]:::planned
-  adrIndex --> adr["One ADR<br/>install/adr/ or docs/adr/<br/>2.3, 2.4"]:::planned
+  choice -- yes --> adrIndex["ADR file names<br/>agents0 plugin adr/, named by dev0.md"]:::exists
+  adrIndex --> adr["One ADR<br/>plugin adr/, or project docs/adr/ in 2.4"]:::exists
 
   story -- yes --> tracker["tracker skill: get<br/>6.1"]:::planned
   tracker --> issueTracker["docs/agents/issue-tracker.md<br/>triage-labels.md<br/>6.2"]:::planned
@@ -78,11 +78,10 @@ flowchart TD
 
   term -- yes --> glossary["GLOSSARY.md of that context<br/>planned"]:::planned
 
-  slash -- yes --> pocock["Pocock skill loads<br/>reads docs/agents/*.md"]:::exists
+  slash -- yes --> pocock["mattpocock-skills plugin skill loads<br/>pinned in the agents0 marketplace<br/>reads docs/agents/*.md"]:::exists
   pocock --> issueTracker
 
   classDef exists fill:#dcfce7,stroke:#16a34a,color:#14532d
-  classDef changing fill:#fef3c7,stroke:#d97706,color:#78350f
   classDef planned fill:#f1f5f9,stroke:#64748b,color:#334155,stroke-dasharray:5 3
 ```
 
@@ -109,7 +108,7 @@ flowchart LR
   classDef planned fill:#f1f5f9,stroke:#64748b,color:#334155,stroke-dasharray:5 3
 ```
 
-None of Dev0's hooks exist yet; the only hooks running today are plugins' own (`claude-mem`).
+None of Dev0's enforcement hooks exist yet. The `agents0` plugin's only hooks inject rules at SessionStart and SubagentStart (§2), which is context, not enforcement; other plugins run their own (`claude-mem`).
 
 ## 5. Never loaded by an agent
 
