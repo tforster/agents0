@@ -15,6 +15,13 @@
  *   search "<jql>" [--max <n>]           run a JQL search (default: 20 results)
  *   comment add  <issue-key> <text>      add a comment
  *   comment list <issue-key>             list comments
+ *   next [--label <l>]                   next story to work: open sprint then backlog, by Rank
+ *   set-parent <issue-key> <epic-key>    set an issue's parent epic
+ *   link <blocker-key> <blocked-key>     create a "Blocks" link (blocker blocks blocked)
+ *   resolve                              print backend/project/site from docs/agents/issue-tracker.md
+ *
+ * Run inside a repo with docs/agents/issue-tracker.md and the declared project and site are used
+ * (--project still wins); credentials always come from env vars.
  *
  * Options for create / update:
  *   --project     <key>   project key (or set JIRA_PROJECT)
@@ -29,20 +36,43 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
 // ── Environment ───────────────────────────────────────────────────────────────
 
-const { JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN, JIRA_PROJECT, JIRA_FIELD_STORY, JIRA_FIELD_AC } = process.env;
+// `let`: the repo's issue-tracker.md may override project and site once the CLI starts (see resolveTracker).
+let { JIRA_BASE_URL, JIRA_PROJECT } = process.env;
+const { JIRA_EMAIL, JIRA_API_TOKEN, JIRA_FIELD_STORY, JIRA_FIELD_AC } = process.env;
 
-if (!JIRA_BASE_URL || !JIRA_EMAIL || !JIRA_API_TOKEN) {
-  console.error("Missing required env vars: JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN");
-  console.error("See: https://id.atlassian.com/manage-api-tokens");
-  process.exit(1);
+// ── Tracker declaration ───────────────────────────────────────────────────────
+
+/**
+ * Read the nearest docs/agents/issue-tracker.md, walking up from a directory.
+ *
+ * Deliberately a few regexes, not a parser: the file is prose written for humans, and the one sentence
+ * every declaration needs is "Issues are tracked in **Jira**, project key `CA`, on `https://x.atlassian.net`."
+ *
+ * @param {string} startDir - Directory to start from (normally the current working directory).
+ * @returns {{ backend: string, project?: string, baseUrl?: string, file: string } | null} Null when no declaration exists.
+ */
+function resolveTracker(startDir) {
+  for (let dir = resolve(startDir); ; dir = dirname(dir)) {
+    const file = join(dir, "docs", "agents", "issue-tracker.md");
+    if (existsSync(file)) {
+      const text = readFileSync(file, "utf8");
+      const backend = text.match(/\*\*(Jira|Paca|Azure DevOps)\*\*/i)?.[1];
+      return {
+        backend: backend ? backend.toLowerCase() : "unknown",
+        project: text.match(/project key `([A-Z][A-Z0-9_]*)`/)?.[1],
+        baseUrl: text.match(/https:\/\/[\w.-]+\.atlassian\.net/)?.[0],
+        file,
+      };
+    }
+    if (dirname(dir) === dir) return null;
+  }
 }
-
-const AUTH = Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString("base64");
-const BASE = `${JIRA_BASE_URL.replace(/\/$/, "")}/rest/api/3`;
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
 
@@ -55,10 +85,13 @@ const BASE = `${JIRA_BASE_URL.replace(/\/$/, "")}/rest/api/3`;
  * @returns {Promise<object|null>} Parsed JSON response, or null for 204.
  */
 async function api(method, path, body) {
-  const res = await fetch(`${BASE}${path}`, {
+  // Computed per call: JIRA_BASE_URL can change after startup when the repo declares its own site.
+  const auth = Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString("base64");
+  const base = `${(JIRA_BASE_URL ?? "").replace(/\/$/, "")}/rest/api/3`;
+  const res = await fetch(`${base}${path}`, {
     method,
     headers: {
-      "Authorization": `Basic ${AUTH}`,
+      "Authorization": `Basic ${auth}`,
       "Content-Type": "application/json",
       "Accept": "application/json",
     },
@@ -70,7 +103,9 @@ async function api(method, path, body) {
     throw new Error(`HTTP ${res.status} ${res.statusText}: ${text}`);
   }
 
-  return res.status === 204 ? null : res.json();
+  // 204, and 201 from POST /issueLink, carry no body, so parse only what is there.
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
 // ── ADF helpers ───────────────────────────────────────────────────────────────
@@ -230,6 +265,56 @@ async function getIssue(key) {
   }
 
   console.log(`  URL:      ${JIRA_BASE_URL}/browse/${issue.key}`);
+
+  if (f.parent) await printParent(f.parent.key);
+}
+
+/**
+ * Collect every URL in an ADF tree: link marks, smart-link cards and bare URLs typed into text.
+ * `fromAdf` drops all of these, and a blueprint link would otherwise vanish from the output.
+ *
+ * @param {object|null} adf - ADF node.
+ * @returns {string[]} URLs in document order.
+ */
+function collectUrls(adf) {
+  const urls = [];
+
+  /** @param {any} node */
+  const walk = (node) => {
+    for (const mark of node.marks ?? []) if (mark.type === "link") urls.push(mark.attrs.href);
+    if (node.type === "inlineCard" || node.type === "blockCard") urls.push(node.attrs?.url);
+    if (node.type === "text") urls.push(...(node.text?.match(/https?:\/\/\S+/g) ?? []));
+    node.content?.forEach(walk);
+  };
+
+  if (adf) walk(adf);
+  return urls.filter(Boolean);
+}
+
+/**
+ * Print the parent issue's description, and the repo blueprint file it links to if any.
+ *
+ * Epic blueprints live in the repo (docs/epics/<key>-<slug>.md), not in Jira: a description caps at
+ * 32,767 characters. The description is then a summary plus a link, so the agent must read that file
+ * for the Implementation Decisions; we report the path and leave the reading to the agent.
+ *
+ * @param {string} parentKey - Parent issue key, normally the epic.
+ */
+async function printParent(parentKey) {
+  const parent = await api("GET", `/issue/${parentKey}?fields=summary,description,issuetype`);
+  const pf = parent.fields;
+  const kind = pf.issuetype?.name ?? "Parent";
+
+  console.log(`\n${kind}: ${parent.key}: ${pf.summary}`);
+  console.log(`  ${kind} description (Implementation Decisions, or a summary linking to the blueprint):`);
+  console.log(`    ${fromAdf(pf.description).replace(/\n/g, "\n    ")}`);
+
+  const blueprintUrl = collectUrls(pf.description).find((u) => /docs\/epics\/[^\s)]+\.md/.test(u));
+  const blueprintPath = blueprintUrl?.match(/docs\/epics\/[^\s)#?]+\.md/)?.[0];
+  if (blueprintPath) {
+    console.log(`  Blueprint: ${blueprintPath}`);
+    console.log(`    Read this file from the repo: it holds the epic's Implementation Decisions. Link: ${blueprintUrl}`);
+  }
 }
 
 /**
@@ -382,6 +467,73 @@ async function listComments(key) {
   }
 }
 
+/**
+ * Build the JQL for the next story. Rank order is board order. The sprint clause is a parameter
+ * because the open sprint is tried first and the sprintless backlog only when it is empty.
+ *
+ * @param {string} project - Project key.
+ * @param {string} sprintClause - `sprint in openSprints()` or `sprint is EMPTY`.
+ * @param {string} [label] - Optional label filter, e.g. ready-for-agent.
+ * @returns {string} JQL.
+ */
+function nextJql(project, sprintClause, label) {
+  const clauses = [`project = ${project}`, "issuetype = Story", 'statusCategory = "To Do"', sprintClause];
+  if (label) clauses.push(`labels = ${JSON.stringify(label)}`);
+  return `${clauses.join(" AND ")} ORDER BY Rank ASC`;
+}
+
+/**
+ * Show the next story to work: first by Rank in the open sprint, else first by Rank in the backlog.
+ *
+ * @param {string} project - Project key.
+ * @param {string} [label] - Optional label filter.
+ */
+async function nextIssue(project, label) {
+  for (const sprintClause of ["sprint in openSprints()", "sprint is EMPTY"]) {
+    const data = await api("POST", "/search/jql", {
+      jql: nextJql(project, sprintClause, label),
+      maxResults: 1,
+      fields: ["summary", "status", "issuetype", "labels"],
+    });
+    const issue = data.issues?.[0];
+    if (issue) {
+      console.log(`${issue.key}: ${issue.fields.summary}`);
+      console.log(`  Status: ${issue.fields.status?.name ?? "?"}`);
+      console.log(`  Source: ${sprintClause === "sprint is EMPTY" ? "backlog" : "open sprint"}`);
+      console.log(`  URL:    ${JIRA_BASE_URL}/browse/${issue.key}`);
+      return;
+    }
+  }
+  console.log("No eligible story.");
+}
+
+/**
+ * Set an issue's parent epic.
+ *
+ * @param {string} key - Issue to re-parent.
+ * @param {string} epicKey - Epic that becomes its parent.
+ */
+async function setParent(key, epicKey) {
+  await api("PUT", `/issue/${key}`, { fields: { parent: { key: epicKey } } });
+  console.log(`✓ ${key} is now a child of ${epicKey}`);
+}
+
+/**
+ * Create a "Blocks" link. In Jira's Blocks type the outward side reads "blocks" and the inward side
+ * "is blocked by", so the blocker is the outwardIssue and the blocked issue the inwardIssue.
+ *
+ * @param {string} blockerKey - Issue that blocks.
+ * @param {string} blockedKey - Issue that is blocked.
+ */
+async function linkBlocks(blockerKey, blockedKey) {
+  await api("POST", "/issueLink", {
+    type: { name: "Blocks" },
+    outwardIssue: { key: blockerKey },
+    inwardIssue: { key: blockedKey },
+  });
+  console.log(`✓ ${blockerKey} blocks ${blockedKey}`);
+}
+
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
 const [, , command, ...rest] = process.argv;
@@ -398,6 +550,7 @@ const { values, positionals } = parseArgs({
     story: { type: "string" },
     ac: { type: "string" },
     parent: { type: "string" },
+    label: { type: "string" },
     assignee: { type: "string" },
     status: { type: "string" },
     max: { type: "string", default: "20" },
@@ -405,7 +558,43 @@ const { values, positionals } = parseArgs({
 });
 
 try {
+  const tracker = resolveTracker(process.cwd());
+
+  if (command === "resolve") {
+    console.log(JSON.stringify(tracker ?? { backend: null }));
+    process.exit(0);
+  }
+
+  if (tracker && tracker.backend !== "jira") {
+    throw new Error(`${tracker.file} declares ${tracker.backend}, not Jira: this recipe does not apply`);
+  }
+  // Precedence: --project flag, then the repo declaration, then the JIRA_PROJECT default.
+  JIRA_PROJECT = tracker?.project ?? JIRA_PROJECT;
+  JIRA_BASE_URL = tracker?.baseUrl ?? JIRA_BASE_URL;
+  if (values.project) JIRA_PROJECT = values.project;
+
+  if (!JIRA_BASE_URL || !JIRA_EMAIL || !JIRA_API_TOKEN) {
+    console.error("Missing required env vars: JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN");
+    console.error("See: https://id.atlassian.com/manage-api-tokens");
+    process.exit(1);
+  }
+
   switch (command) {
+    case "next":
+      if (!JIRA_PROJECT) throw new Error("Set --project <key>, the JIRA_PROJECT env var, or docs/agents/issue-tracker.md");
+      await nextIssue(JIRA_PROJECT, values.label);
+      break;
+
+    case "set-parent":
+      if (!positionals[1]) throw new Error("Usage: jira.mjs set-parent <issue-key> <epic-key>");
+      await setParent(positionals[0], positionals[1]);
+      break;
+
+    case "link":
+      if (!positionals[1]) throw new Error("Usage: jira.mjs link <blocker-key> <blocked-key>");
+      await linkBlocks(positionals[0], positionals[1]);
+      break;
+
     case "whoami":
       await whoami();
       break;
@@ -451,7 +640,7 @@ try {
     }
 
     default:
-      console.error("Commands: whoami | get | create | update | search | comment");
+      console.error("Commands: whoami | get | create | update | search | comment | next | set-parent | link | resolve");
       console.error("See SKILL.md for usage examples.");
       process.exit(1);
   }
