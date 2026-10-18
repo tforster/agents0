@@ -192,6 +192,17 @@ describe("Agents0 marketplace and plugin", () => {
     }
   });
 
+  it("DEV0-68 AC8: the dev0 rule scales Dev0's six tests to a doer's choices, bounded by the blueprint", async () => {
+    const rule = await readFile(path.join(repoRoot, "rules", "dev0.md"), "utf8");
+    const [, section = ""] = rule.split(/^## \d+\. Below the blueprint$/m);
+    const belowBlueprint = section.split(/^## /m)[0];
+    for (const test of ["Less", "Separate", "Legibility", "Native", "Beneficiary", "Control"]) {
+      assert.match(belowBlueprint, new RegExp(`^- \\*\\*${test}\\*\\* -- `, "m"), `the dev0 rule does not scale the ${test} test`);
+    }
+    // Without this guard, Native or Less becomes a doer's licence to reopen the architect's decisions.
+    assert.ok(belowBlueprint.includes("within the blueprint, never against it"), "the six tests are not bounded by the blueprint");
+  });
+
   it("DEV0-67 AC4: no rule, skill or agent assumes ~/.claude/, and plugin paths resolve inside the plugin", async () => {
     const files = [...(await listFiles("rules")), ...(await listFiles("skills")), ...(await listFiles("agents"))];
     for (const file of files) {
