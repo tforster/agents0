@@ -1,7 +1,3 @@
----
-applyTo: "tests/**,**/*.test.js"
----
-
 # Testing Standards <!-- omit in toc -->
 
 ## 1. Test Runners

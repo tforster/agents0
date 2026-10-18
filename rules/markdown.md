@@ -1,7 +1,3 @@
----
-applyTo: "**/*.md"
----
-
 # Markdown Style Guide <!-- omit in toc -->
 
 Constraints that hold for every Markdown file, always. The authoring procedure — document templates, the code-fence language table, and the scripts that regenerate a Table of Contents and section numbers — lives in the `markdown` skill. Invoke it when creating or restructuring a document.

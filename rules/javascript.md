@@ -1,7 +1,3 @@
----
-applyTo: "**/*.js"
----
-
 # JavaScript Standards <!-- omit in toc -->
 
 > [!NOTE]

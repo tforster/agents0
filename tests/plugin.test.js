@@ -184,6 +184,14 @@ describe("Agents0 marketplace and plugin", () => {
     await assert.rejects(injectRule("SessionStart", path.join(repoRoot, "rules", "dev0.md"), ""), /CLAUDE_PLUGIN_ROOT is not set/);
   });
 
+  it("DEV0-68 AC7: no rule carries frontmatter, since the hook injects the whole file and reads none", async () => {
+    // applyTo: was GitHub Copilot's path scoping; Claude Code never honoured it, so it only misled.
+    for (const rule of await readdir(path.join(repoRoot, "rules"))) {
+      const content = await readFile(path.join(repoRoot, "rules", rule), "utf8");
+      assert.ok(!content.startsWith("---"), `rules/${rule} carries frontmatter the hook does not use`);
+    }
+  });
+
   it("DEV0-67 AC4: no rule, skill or agent assumes ~/.claude/, and plugin paths resolve inside the plugin", async () => {
     const files = [...(await listFiles("rules")), ...(await listFiles("skills")), ...(await listFiles("agents"))];
     for (const file of files) {
@@ -210,7 +218,10 @@ describe("Agents0 marketplace and plugin", () => {
   });
 
   it("DEV0-67 AC6: the README documents install, the edit loop and the pin policy", async () => {
-    const readme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+    // DEV0-68 AC6 moved the edit loop and pin policy into a how-to, linked from the README.
+    const readme = (
+      await Promise.all(["README.md", "docs/how-to/develop-agents0.md"].map((file) => readFile(path.join(repoRoot, file), "utf8")))
+    ).join("\n");
     for (const text of [
       "claude plugin marketplace add tforster/agents0",
       "claude plugin install agents0@agents0",
