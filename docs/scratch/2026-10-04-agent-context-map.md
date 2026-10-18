@@ -22,7 +22,7 @@ flowchart LR
   classDef planned fill:#f1f5f9,stroke:#64748b,color:#334155,stroke-dasharray:5 3
 ```
 
-Everything in §2 is paid by **every** agent, including each subagent and loop worker (A2) -- except the rules, which a subagent does not receive -- so it is the budget that matters: D25 targets ~1,200 tokens for the global rules, D63 caps the root `CLAUDE.md` plus imports at 6 KB.
+Everything in §2 is paid by **every** agent, including each subagent and loop worker (A2), so it is the budget that matters: D25 targets ~1,200 tokens for the global rules, D63 caps the root `CLAUDE.md` plus imports at 6 KB.
 
 ## 2. Always loaded, at start
 
@@ -37,15 +37,16 @@ flowchart TD
   rootMd --> pointers["Skill and agent descriptions<br/>agents0: plugin, pinned third-party plugins<br/>user-only skills excluded (A4, 5.8)"]:::exists
   pointers --> mcp["MCP tool names<br/>today global; per project via .mcp.json (5.6)"]:::exists
   mcp --> subagent{"Started by<br/>the Agent tool?"}
-  subagent -- no --> rules["Rules, one SessionStart hook each<br/>agents0 rules/: dev0.md, code-style.md, javascript.md,<br/>testing.md, markdown.md, diataxis.md<br/>each under 10,000 characters"]:::exists
-  subagent -- yes --> ready(["Ready for the first prompt"])
-  rules --> ready
+  subagent -- no --> sessionRules["Rules, one SessionStart hook each<br/>agents0 rules/: dev0.md, code-style.md, javascript.md,<br/>testing.md, markdown.md, diataxis.md<br/>each under 10,000 characters"]:::exists
+  subagent -- yes --> subagentRules["Same rules, one SubagentStart hook each"]:::exists
+  sessionRules --> ready(["Ready for the first prompt"])
+  subagentRules --> ready
 
   classDef exists fill:#dcfce7,stroke:#16a34a,color:#14532d
   classDef planned fill:#f1f5f9,stroke:#64748b,color:#334155,stroke-dasharray:5 3
 ```
 
-Plugins cannot ship rules, so the `agents0` plugin injects each file in `rules/` through its own SessionStart hook: hook output over 10,000 characters is cut to a preview. The six rules are about 4.3k tokens in every main session and `claude -p` worker. A subagent started with the Agent tool gets no SessionStart context, so it sees none of them; native `~/.claude/rules/` used to reach it. 2.6 and 2.7 demote the language rules into skills.
+Plugins cannot ship rules, so the `agents0` plugin injects each file in `rules/` through its own hook: hook output over 10,000 characters is cut to a preview. A subagent started with the Agent tool gets no SessionStart context, so each rule has a SubagentStart hook too. The six rules are about 4.3k tokens in every agent. 2.6 and 2.7 demote the language rules into skills.
 
 ## 3. Loaded on demand, during work
 
@@ -107,7 +108,7 @@ flowchart LR
   classDef planned fill:#f1f5f9,stroke:#64748b,color:#334155,stroke-dasharray:5 3
 ```
 
-None of Dev0's enforcement hooks exist yet. The `agents0` plugin's only hooks inject rules at SessionStart (§2), which is context, not enforcement; other plugins run their own (`claude-mem`).
+None of Dev0's enforcement hooks exist yet. The `agents0` plugin's only hooks inject rules at SessionStart and SubagentStart (§2), which is context, not enforcement; other plugins run their own (`claude-mem`).
 
 ## 5. Never loaded by an agent
 

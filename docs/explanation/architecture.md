@@ -8,7 +8,7 @@ How Agents0, the toolkit that delivers [Dev0](https://github.com/tforster/dev0),
 - [2. Scope, and Where It Came From](#2-scope-and-where-it-came-from)
 - [3. Repository Layout](#3-repository-layout)
 - [4. Marketplace and Plugin](#4-marketplace-and-plugin)
-- [5. Rules Through SessionStart Hooks](#5-rules-through-sessionstart-hooks)
+- [5. Rules Through Hooks](#5-rules-through-hooks)
 - [6. Paths Inside the Plugin](#6-paths-inside-the-plugin)
 - [7. Third-Party Plugins and Pins](#7-third-party-plugins-and-pins)
 - [8. Testing Strategy](#8-testing-strategy)
@@ -42,7 +42,7 @@ agents0/
 ├── agents/<name>.md         # Agents0's own agents
 ├── rules/<topic>.md         # injected by hooks -- see §5
 ├── hooks/
-│   ├── hooks.json           # one SessionStart entry per rule
+│   ├── hooks.json           # one SessionStart and one SubagentStart entry per rule
 │   └── inject-rule.js
 ├── adr/                     # cross-project ADRs
 ├── docs/
@@ -59,13 +59,14 @@ The repo root is the plugin root, so the plugin directories sit at the top level
 
 Plugin skills and agents are namespaced: `markdown` becomes `agents0:markdown`.
 
-## 5. Rules Through SessionStart Hooks
+## 5. Rules Through Hooks
 
-Plugins cannot carry rules and have no install hook. So `hooks/hooks.json` gives each file in `rules/` its own SessionStart entry, matched on `startup|clear|compact`, which runs `hooks/inject-rule.js` on that file; Claude Code adds the output to the session as context. `resume` is left out: a resumed session is expected to carry the rules in its transcript already.
+Plugins cannot carry rules and have no install hook. So `hooks/hooks.json` gives each file in `rules/` two entries, each running `hooks/inject-rule.js` on that file, which returns it as `additionalContext`:
 
-One hook per rule, not one for all, because Claude Code caps each hook's output at 10,000 characters and replaces anything longer with a file path and a 2,000-character preview. All six rules together are about 17,000 characters. A test fails when any rule reaches the cap or lacks its hook entry.
+- **SessionStart**, matched on `startup|clear|compact`, for the main session and `claude -p` workers. `resume` is left out: a resumed session is expected to carry the rules in its transcript already
+- **SubagentStart**, matched on `*`, for subagents started with the Agent tool, which never see SessionStart context
 
-SessionStart context reaches the main session, `claude -p` workers included, but not subagents: a subagent started with the Agent tool sees no rule. Rules loaded natively from `~/.claude/rules/` did reach subagents.
+One hook per rule, not one for all, because Claude Code caps each hook's output at 10,000 characters and replaces anything longer with a file path and a 2,000-character preview. All six rules together are about 17,000 characters. A test fails when any rule reaches the cap or lacks an entry under either event.
 
 ## 6. Paths Inside the Plugin
 

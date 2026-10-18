@@ -26,7 +26,7 @@ claude --plugin-dir .                 # load this working copy as the plugin for
 ## Architecture
 
 - **Plugin layout**: `.claude-plugin/marketplace.json` lists `agents0` (`"source": "./"`) plus pinned third-party plugins; `.claude-plugin/plugin.json` has **no `version`**, so the cache is keyed by commit and every commit is an update. Do not add one.
-- **Rules**: plugins cannot ship rules, so each `rules/*.md` has its own SessionStart entry in `hooks/hooks.json` running `hooks/inject-rule.js`. A new rule needs a new entry, and must stay under 10,000 characters (hook output cap); `tests/plugin.test.js` enforces both.
+- **Rules**: plugins cannot ship rules, so each `rules/*.md` has its own SessionStart and SubagentStart entry in `hooks/hooks.json`, both running `hooks/inject-rule.js`. A new rule needs both entries, and must stay under 10,000 characters (hook output cap); `tests/plugin.test.js` enforces both.
 - **Paths**: never write `~/.claude/` into plugin content. Skills use `${CLAUDE_SKILL_DIR}`; rules use `${CLAUDE_PLUGIN_ROOT}`, which `inject-rule.js` substitutes.
 - **Third-party skills are not vendored**: add the upstream plugin to `marketplace.json`, pinned to a release tag (`ref`) and its 40-character `sha`.
 - **Testing convention**: tests read the repo's own files and run `hooks/inject-rule.js` as a real child process. Any `claude` CLI call in a test uses a throwaway `CLAUDE_CONFIG_DIR`.

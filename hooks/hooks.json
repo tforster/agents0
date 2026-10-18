@@ -7,32 +7,69 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "${CLAUDE_PLUGIN_ROOT}/rules/code-style.md"]
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SessionStart", "${CLAUDE_PLUGIN_ROOT}/rules/code-style.md"]
           },
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "${CLAUDE_PLUGIN_ROOT}/rules/dev0.md"]
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SessionStart", "${CLAUDE_PLUGIN_ROOT}/rules/dev0.md"]
           },
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "${CLAUDE_PLUGIN_ROOT}/rules/diataxis.md"]
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SessionStart", "${CLAUDE_PLUGIN_ROOT}/rules/diataxis.md"]
           },
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "${CLAUDE_PLUGIN_ROOT}/rules/javascript.md"]
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SessionStart", "${CLAUDE_PLUGIN_ROOT}/rules/javascript.md"]
           },
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "${CLAUDE_PLUGIN_ROOT}/rules/markdown.md"]
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SessionStart", "${CLAUDE_PLUGIN_ROOT}/rules/markdown.md"]
           },
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "${CLAUDE_PLUGIN_ROOT}/rules/testing.md"]
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SessionStart", "${CLAUDE_PLUGIN_ROOT}/rules/testing.md"]
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SubagentStart", "${CLAUDE_PLUGIN_ROOT}/rules/code-style.md"]
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SubagentStart", "${CLAUDE_PLUGIN_ROOT}/rules/dev0.md"]
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SubagentStart", "${CLAUDE_PLUGIN_ROOT}/rules/diataxis.md"]
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SubagentStart", "${CLAUDE_PLUGIN_ROOT}/rules/javascript.md"]
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SubagentStart", "${CLAUDE_PLUGIN_ROOT}/rules/markdown.md"]
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SubagentStart", "${CLAUDE_PLUGIN_ROOT}/rules/testing.md"]
           }
         ]
       }

@@ -73,12 +73,13 @@ async function listFiles(directory) {
 /**
  * Runs hooks/inject-rule.js the way Claude Code does, with the plugin root in the environment.
  *
+ * @param {string} hookEventName - SessionStart or SubagentStart.
  * @param {string} rulePath - Absolute path of the rule file.
  * @param {string} pluginRoot - Value for CLAUDE_PLUGIN_ROOT.
  * @returns {Promise<string>} The hook's stdout.
  */
-async function injectRule(rulePath, pluginRoot) {
-  const { stdout } = await run("node", [path.join(repoRoot, "hooks", "inject-rule.js"), rulePath], {
+async function injectRule(hookEventName, rulePath, pluginRoot) {
+  const { stdout } = await run("node", [path.join(repoRoot, "hooks", "inject-rule.js"), hookEventName, rulePath], {
     env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot },
   });
   return stdout;
@@ -127,21 +128,31 @@ describe("Agents0 marketplace and plugin", () => {
     }
   });
 
-  it("DEV0-67 AC3: every rule is under 10,000 characters and has its own SessionStart hook", async () => {
-    const { hooks } = await readJson("hooks/hooks.json");
-    const groups = hooks.SessionStart;
-    assert.deepStrictEqual(
-      groups.map((/** @type {{ matcher: string }} */ group) => group.matcher),
-      ["startup|clear|compact"]
-    );
+  // SessionStart reaches the main session and `claude -p` workers; SubagentStart reaches Agent-tool subagents.
+  const hookEvents = /** @type {const} */ ({ SessionStart: "startup|clear|compact", SubagentStart: "*" });
 
-    /** @type {string[]} */
-    const hooked = groups[0].hooks.map((/** @type {{ command: string, args: string[] }} */ hook) => {
-      assert.deepStrictEqual([hook.command, hook.args[0]], ["node", "${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js"]);
-      return hook.args[1].replace("${CLAUDE_PLUGIN_ROOT}/", "");
-    });
+  it("DEV0-67 AC3: every rule is under 10,000 characters and has its own SessionStart and SubagentStart hook", async () => {
+    const { hooks } = await readJson("hooks/hooks.json");
     const rules = (await readdir(path.join(repoRoot, "rules"))).map((name) => `rules/${name}`);
-    assert.deepStrictEqual([...hooked].sort(), rules.sort(), "each rule needs exactly one hook entry");
+    assert.deepStrictEqual(Object.keys(hooks).sort(), Object.keys(hookEvents).sort());
+
+    for (const [event, matcher] of Object.entries(hookEvents)) {
+      const groups = hooks[event];
+      assert.deepStrictEqual(
+        groups.map((/** @type {{ matcher: string }} */ group) => group.matcher),
+        [matcher]
+      );
+
+      /** @type {string[]} */
+      const hooked = groups[0].hooks.map((/** @type {{ command: string, args: string[] }} */ hook) => {
+        assert.deepStrictEqual(
+          [hook.command, hook.args[0], hook.args[1]],
+          ["node", "${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", event]
+        );
+        return hook.args[2].replace("${CLAUDE_PLUGIN_ROOT}/", "");
+      });
+      assert.deepStrictEqual([...hooked].sort(), [...rules].sort(), `each rule needs exactly one ${event} entry`);
+    }
 
     for (const rule of rules) {
       const { length } = await readFile(path.join(repoRoot, rule), "utf8");
@@ -149,19 +160,22 @@ describe("Agents0 marketplace and plugin", () => {
     }
   });
 
-  it("DEV0-67 AC3: the hook prints the rule with the plugin root substituted, within the cap", async () => {
+  it("DEV0-67 AC3: the hook returns the rule as additionalContext, plugin root substituted, within the cap", async () => {
     // A long root leaves headroom for real cache paths such as ~/.claude/plugins/cache/agents0/agents0/<sha>.
     const pluginRoot = `/${"p".repeat(200)}`;
-    for (const rule of await readdir(path.join(repoRoot, "rules"))) {
-      const content = await readFile(path.join(repoRoot, "rules", rule), "utf8");
-      const output = await injectRule(path.join(repoRoot, "rules", rule), pluginRoot);
-      assert.strictEqual(output, content.replaceAll("${CLAUDE_PLUGIN_ROOT}", pluginRoot));
-      assert.ok(output.length < hookCap, `rules/${rule} renders to ${output.length} characters`);
+    for (const hookEventName of Object.keys(hookEvents)) {
+      for (const rule of await readdir(path.join(repoRoot, "rules"))) {
+        const content = await readFile(path.join(repoRoot, "rules", rule), "utf8");
+        const output = JSON.parse(await injectRule(hookEventName, path.join(repoRoot, "rules", rule), pluginRoot));
+        const additionalContext = content.replaceAll("${CLAUDE_PLUGIN_ROOT}", pluginRoot);
+        assert.deepStrictEqual(output, { hookSpecificOutput: { hookEventName, additionalContext } });
+        assert.ok(additionalContext.length < hookCap, `rules/${rule} renders to ${additionalContext.length} characters`);
+      }
     }
   });
 
   it("DEV0-67 AC3: the hook fails loudly outside Claude Code, with no plugin root", async () => {
-    await assert.rejects(injectRule(path.join(repoRoot, "rules", "dev0.md"), ""), /CLAUDE_PLUGIN_ROOT is not set/);
+    await assert.rejects(injectRule("SessionStart", path.join(repoRoot, "rules", "dev0.md"), ""), /CLAUDE_PLUGIN_ROOT is not set/);
   });
 
   it("DEV0-67 AC4: no rule, skill or agent assumes ~/.claude/, and plugin paths resolve inside the plugin", async () => {

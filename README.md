@@ -28,7 +28,7 @@ The scope test for anything added here: does it exist only to serve the Dev0 wor
 
 - The repo root is both the `agents0` marketplace (`.claude-plugin/marketplace.json`) and the `agents0` plugin (`.claude-plugin/plugin.json`)
 - Installed and updated with `claude plugin`; no installer of its own
-- Plugins cannot ship rules, so each file in `rules/` is injected by its own SessionStart hook
+- Plugins cannot ship rules, so each file in `rules/` is injected by its own SessionStart and SubagentStart hooks
 - Third-party skills come from their authors' plugins, pinned in the marketplace, not vendored copies
 - Deliberately minimal: "simple and good enough for one person" over generality
 
@@ -102,8 +102,6 @@ Documentation follows the [Diátaxis framework](https://diataxis.fr):
 > Tutorials and how-to guides are still stubs — this is a young, single-user tool. Reference (`prd.md`) and Explanation are the most complete sections today.
 
 ## 4. Known Issues
-
-Subagents started with the Agent tool do not receive the rules: SessionStart hook context reaches only the main session and `claude -p` workers.
 
 Work is tracked in the Dev0 project in Paca, one epic per phase of the Dev0 framework (`docs/scratch/2026-09-11-dev0-framework.md` §15). The original issue-by-issue build log lives in git history.
 
