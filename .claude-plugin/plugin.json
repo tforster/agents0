@@ -1,0 +1,8 @@
+{
+  "name": "agents0",
+  "description": "Skills, agents, rules, hooks and ADRs that deliver the Dev0 workflow through Claude Code.",
+  "author": { "name": "Troy Forster", "url": "https://github.com/tforster" },
+  "homepage": "https://github.com/tforster/agents0",
+  "repository": "https://github.com/tforster/agents0",
+  "license": "MIT"
+}

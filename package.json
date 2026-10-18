@@ -1,11 +1,8 @@
 {
   "name": "agents0",
   "version": "0.1.0",
-  "description": "Agents0: skills, agents, rules and tooling that deliver the Dev0 workflow through Claude Code, synced across machines.",
+  "description": "Agents0: a Claude Code plugin marketplace of skills, agents, rules and hooks that deliver the Dev0 workflow.",
   "license": "MIT",
-  "bin": {
-    "agents0": "./bin/agents0"
-  },
   "type": "module",
   "scripts": {
     "test": "node --test \"tests/**/*.test.js\"",
@@ -19,8 +16,5 @@
     "oxfmt": "^0.73.0",
     "oxlint": "^1.73.0",
     "typescript": "^7.0.2"
-  },
-  "engines": {
-    "node": ">=24"
   }
 }
