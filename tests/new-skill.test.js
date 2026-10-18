@@ -1,4 +1,4 @@
-// new-skill.test.js — behavioural tests for dev0 new skill <name>
+// new-skill.test.js — behavioural tests for agents0 new skill <name>
 
 // System dependencies
 import { strict as assert } from "node:assert";
@@ -11,12 +11,12 @@ import path from "node:path";
 import { newSkill } from "../lib/new-skill.js";
 
 /**
- * Builds an isolated fixture: a fake dev0 repo root with a skills/ folder.
+ * Builds an isolated fixture: a fake agents0 repo root with a skills/ folder.
  *
  * @returns {Promise<{root: string, toolkitRoot: string}>} Fixture paths.
  */
 async function makeFixture() {
-  const root = await mkdtemp(path.join(tmpdir(), "dev0-new-skill-"));
+  const root = await mkdtemp(path.join(tmpdir(), "agents0-new-skill-"));
   const toolkitRoot = path.join(root, "repo");
   await mkdir(path.join(toolkitRoot, "install", "skills"), { recursive: true });
   return { root, toolkitRoot };

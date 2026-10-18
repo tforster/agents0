@@ -30,9 +30,11 @@ node ~/.claude/skills/markdown/scripts/update-toc.js docs/how-to/deploy.md
 ```
 
 > [!IMPORTANT]
+>
 > Order matters. `number-sections.js` runs first, because anchor slugs include the section number — `## 2. Code Blocks` anchors to `#2-code-blocks`. Running the ToC update first produces links that break the moment sections are renumbered.
 
 > [!WARNING]
+>
 > Each script prints exactly one line per file — `numbered`/`updated`, `unchanged`, or `skipped`. **Silence means the script did not run.** Never report a document as clean on the basis of no output; check that you got a line per file first.
 
 Both accept multiple files, are idempotent, and print `unchanged` when there is nothing to do, so re-running after every edit is free:
@@ -103,21 +105,27 @@ Every fence takes a language identifier. When in doubt use `text` rather than le
 
 ## 4. Callouts and Tables
 
-Use GitHub Flavoured callouts for anything that interrupts the reader:
+Use GitHub Flavoured callouts for anything that interrupts the reader. Put an empty `>` line between the marker and the text:
 
 ```markdown
 > [!NOTE]
+>
 > Useful information.
 
 > [!TIP]
+>
 > Helpful suggestion.
 
 > [!WARNING]
+>
 > Something that could go wrong.
 
 > [!IMPORTANT]
+>
 > Critical information.
 ```
+
+The empty line makes the marker and the text separate paragraphs. Without it they are one paragraph joined by a soft line break, and a formatter set to unwrap prose (oxfmt or Prettier with `proseWrap: "never"`) folds them into `> [!NOTE] Useful information.`, which GitHub no longer renders as a callout. GitHub renders both forms the same.
 
 Tables declare column alignment in the delimiter row — `:---` left, `:---:` centre, `---:` right.
 
@@ -148,6 +156,7 @@ See [Connection String Format](../reference/oracle-guide.md#3-connection-string-
 ```
 
 > [!WARNING]
+>
 > Cross-document anchor links embed the section number. Renumbering a document invalidates inbound links to it, and the scripts cannot detect that. After renumbering, grep for links to the file you changed.
 
 ## 6. Verify
@@ -158,6 +167,7 @@ See [Connection String Format](../reference/oracle-guide.md#3-connection-string-
 - [ ] Canadian/British English throughout — organise, colour, behaviour, centre, analyse
 - [ ] No `---` horizontal rules
 - [ ] No hard-wrapped prose lines
+- [ ] Every callout has an empty `>` line between its marker and its text
 - [ ] Back-navigation link at the end
 - [ ] Category `README.md` updated if a document was added or removed
 - [ ] No content duplicated from another document

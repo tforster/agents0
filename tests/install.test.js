@@ -1,4 +1,4 @@
-// install.test.js — behavioural tests for dev0 install/uninstall (symlink categories)
+// install.test.js — behavioural tests for agents0 install/uninstall (symlink categories)
 //
 // Uses real temp directories rather than mocking fs: the behaviour under test
 // is filesystem symlink manipulation, so a fake fs would test our own stub
@@ -18,13 +18,13 @@ import path from "node:path";
 import { install, uninstall } from "../lib/install.js";
 
 /**
- * Builds an isolated fixture: a fake dev0 repo root (with populated
+ * Builds an isolated fixture: a fake agents0 repo root (with populated
  * install/{skills,agents,rules} content) and a fake home directory to install into.
  *
  * @returns {Promise<{root: string, toolkitRoot: string, home: string}>} Fixture paths.
  */
 async function makeFixture() {
-  const root = await mkdtemp(path.join(tmpdir(), "dev0-"));
+  const root = await mkdtemp(path.join(tmpdir(), "agents0-"));
   const toolkitRoot = path.join(root, "repo");
   const home = path.join(root, "home");
   await mkdir(path.join(toolkitRoot, "install", "skills"), { recursive: true });
@@ -187,28 +187,28 @@ describe("install: all harnesses and the CLI link", () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it("links bin/dev0 to config.bin, creating its directory", async () => {
+  it("DEV0-66 AC1: links bin/agents0 to config.bin, creating its directory", async () => {
     const { root, toolkitRoot, home } = await makeFixture();
-    const binPath = path.join(home, "bin", "dev0");
+    const binPath = path.join(home, "bin", "agents0");
     const config = { bin: binPath, harnesses: { testharness: {} } };
 
     await install("testharness", { config, toolkitRoot });
 
     assert.ok((await lstat(binPath)).isSymbolicLink());
-    assert.strictEqual(path.resolve(path.dirname(binPath), await readlink(binPath)), path.join(toolkitRoot, "bin", "dev0"));
+    assert.strictEqual(path.resolve(path.dirname(binPath), await readlink(binPath)), path.join(toolkitRoot, "bin", "agents0"));
 
     await rm(root, { recursive: true, force: true });
   });
 
   it("refuses and makes no changes when a real file sits at config.bin", async () => {
     const { root, toolkitRoot, home } = await makeFixture();
-    const binPath = path.join(home, "bin", "dev0");
+    const binPath = path.join(home, "bin", "agents0");
     const skillsTarget = path.join(home, ".testharness", "skills");
     await mkdir(path.dirname(binPath), { recursive: true });
     await writeFile(binPath, "not ours");
     const config = { bin: binPath, harnesses: { testharness: { skills: skillsTarget } } };
 
-    await assert.rejects(install("testharness", { config, toolkitRoot }), /the dev0 CLI.*real file or directory/);
+    await assert.rejects(install("testharness", { config, toolkitRoot }), /the agents0 CLI.*real file or directory/);
 
     assert.ok(!(await lstat(binPath)).isSymbolicLink(), "pre-existing file must be left alone");
     await assert.rejects(lstat(skillsTarget), /ENOENT/);
@@ -283,7 +283,7 @@ describe("uninstall", () => {
 
   it("keeps the CLI link when uninstalling one harness, removes it when uninstalling all", async () => {
     const { root, toolkitRoot, home } = await makeFixture();
-    const binPath = path.join(home, "bin", "dev0");
+    const binPath = path.join(home, "bin", "agents0");
     const config = { bin: binPath, harnesses: { testharness: { skills: path.join(home, ".testharness", "skills") } } };
 
     await install(undefined, { config, toolkitRoot });
