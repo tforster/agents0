@@ -18,7 +18,8 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const hookCap = 10_000;
 const shaPattern = /^[0-9a-f]{40}$/;
 
-// Skills that were vendored copies of upstream plugins, now installed from the pinned entries.
+// Skills that were vendored copies of upstream plugins. They stay deleted: most come from the pinned
+// entries, and Cloudflare's are installed per project instead (architect's decision, DEV0-67).
 const vendoredSkills = [
   "agents-sdk",
   "c4-architecture",
@@ -99,6 +100,11 @@ describe("Agents0 marketplace and plugin", () => {
       // Pin to a release tag where upstream has one, so `claude plugin update` moves with releases.
       if (source.ref !== undefined) assert.match(source.ref, /^v\d+\.\d+\.\d+$/, `${name} ref is not a release tag`);
     }
+  });
+
+  it("DEV0-67 AC1: cloudflare is not in the marketplace; projects install it themselves", async () => {
+    const { plugins } = await readJson(".claude-plugin/marketplace.json");
+    assert.ok(!plugins.some((/** @type {{ name: string }} */ plugin) => plugin.name === "cloudflare"), "cloudflare is listed");
   });
 
   it("DEV0-67 AC1: vendored third-party skills are gone from skills/", async () => {

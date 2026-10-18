@@ -19,15 +19,6 @@
       "description": "Matt Pocock's engineering skills: grilling, TDD, code review, domain modelling and more."
     },
     {
-      "name": "cloudflare",
-      "source": {
-        "source": "github",
-        "repo": "cloudflare/skills",
-        "sha": "86505e44f87d801aa1864a3c4109e9a8ae5c409f"
-      },
-      "description": "Cloudflare's platform skills (Workers, Durable Objects, Agents SDK, Sandbox, wrangler and more) and its MCP server."
-    },
-    {
       "name": "tare",
       "source": {
         "source": "github",

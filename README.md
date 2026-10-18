@@ -42,7 +42,7 @@ It began as `capabilities`, scaffolding for [trAIt](https://github.com/tforster/
 claude plugin marketplace add tforster/agents0
 claude plugin install agents0@agents0
 # the pinned third-party plugins, as needed
-for plugin in mattpocock-skills cloudflare tare c4-architecture; do claude plugin install "$plugin@agents0"; done
+for plugin in mattpocock-skills tare c4-architecture; do claude plugin install "$plugin@agents0"; done
 ```
 
 Or declare both in `~/.claude/settings.json`. The `extraKnownMarketplaces` key must equal the marketplace's own name, `agents0`, or the marketplace is cloned but nothing installs:
@@ -57,6 +57,8 @@ Or declare both in `~/.claude/settings.json`. The `extraKnownMarketplaces` key m
   }
 }
 ```
+
+Cloudflare's skills are not in this marketplace; add them to a project that needs them with `claude plugin marketplace add cloudflare/skills` and `claude plugin install cloudflare@cloudflare --scope project`.
 
 Either way, skills are available from the next session. Plugin skills and agents carry the plugin prefix, such as `agents0:markdown`.
 
