@@ -44,7 +44,9 @@ describe("toolkit documentation", () => {
     for (const file of ["install/rules/markdown.md", "install/skills/markdown/SKILL.md"]) {
       const lines = (await readFile(path.join(repoRoot, file), "utf8")).split("\n");
       lines.forEach((line, index) => {
-        if (!/^> \[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]$/.test(line)) return;
+        const marker = line.match(/^> \[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/)?.[0];
+        if (!marker) return;
+        assert.strictEqual(line, marker, `${file}:${index + 1} callout marker must be on its own line`);
         assert.strictEqual(lines[index + 1], ">", `${file}:${index + 1} callout marker is not followed by an empty > line`);
       });
     }
