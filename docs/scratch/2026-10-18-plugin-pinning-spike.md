@@ -40,7 +40,7 @@ Asked after the first round: what if Agents0 itself installs with `claude plugin
 | One SessionStart hook per rule (largest 6.1 KB)                           | Works. All six rules arrive intact, each in its own context block                                                                                           |
 | SessionStart hook that writes a rule file if missing                      | Works one session late. The file is written in session 1 but not loaded until session 2, because rules are read at launch                                     |
 | Version-less local plugin (`"source": "./"` in a git repo)                | Works. Cache keyed by commit; `plugin update` picks up each commit, not uncommitted edits                                                                   |
-| GitHub marketplace declared in `settings.json`, fresh config              | Not tested. The CLI ignores it, and a session start needs a login the throwaway config does not have                                                        |
+| GitHub marketplace declared in settings (`claude -p --settings`, real config) | Works, with two conditions. The settings key must equal the marketplace's own `name` (`anthropic-agent-skills`); otherwise the marketplace is cloned but no plugin installs. The plugin installs during the first session but its skills appear from the second. The CLI alone ignores the declaration |
 
 No rule uses `paths:` today, so every rule already loads at launch: about 17,300 characters, roughly 4,300 tokens. Injecting them by hook costs nothing extra over today.
 
