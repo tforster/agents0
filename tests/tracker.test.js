@@ -506,6 +506,25 @@ describe("blueprints (AGEN-52)", () => {
     }
   });
 
+  it("AC3: get prints the blueprint of a story too small for an epic, which has no parent at all", () => {
+    const { stdout, status, requests } = runJira(["get", "CA-12"], {
+      routes: [
+        {
+          method: "GET",
+          path: "/issue/CA-12",
+          json: {
+            key: "CA-12",
+            fields: { summary: "Small", issuetype: { name: "Story" }, description: adf("Full blueprint: docs/blueprints/CA-12-small.md") },
+          },
+        },
+      ],
+    });
+
+    assert.strictEqual(status, 0);
+    assert.strictEqual(requests.length, 1);
+    assert.match(stdout, /Blueprint: docs\/blueprints\/CA-12-small\.md \(Story CA-12\)/);
+  });
+
   it("AC4: get prints both blueprints, each labelled with its issue, when the story and its parent both link one", () => {
     const { stdout, status } = getStory(
       adf("Story summary. Full blueprint: docs/blueprints/CA-10-story.md"),
