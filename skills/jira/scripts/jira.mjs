@@ -49,10 +49,12 @@ const { JIRA_EMAIL, JIRA_API_TOKEN, JIRA_FIELD_STORY, JIRA_FIELD_AC } = process.
 // ── Tracker declaration ───────────────────────────────────────────────────────
 
 /**
- * Read the nearest docs/agents/issue-tracker.md, walking up from a directory.
+ * Read the nearest docs/agents/issue-tracker.md, walking up from a directory to the repo root.
  *
  * Deliberately a few regexes, not a parser: the file is prose written for humans, and the one sentence
  * every declaration needs is "Issues are tracked in **Jira**, project key `CA`, on `https://x.atlassian.net`."
+ * Only that declaration is read, from "tracked in" to the end of its line (prose is never hard-wrapped),
+ * so a migration note naming another backend, or a Confluence link earlier in the file, cannot win.
  *
  * @param {string} startDir - Directory to start from (normally the current working directory).
  * @returns {{ backend: string, project?: string, baseUrl?: string, file: string } | null} Null when no declaration exists.
@@ -62,15 +64,18 @@ function resolveTracker(startDir) {
     const file = join(dir, "docs", "agents", "issue-tracker.md");
     if (existsSync(file)) {
       const text = readFileSync(file, "utf8");
-      const backend = text.match(/\*\*(Jira|Paca|Azure DevOps)\*\*/i)?.[1];
+      const declaration = text.match(/tracked in \**(Jira|Paca|Azure DevOps)\**[^\n]*/i);
+      const sentence = declaration?.[0] ?? "";
       return {
-        backend: backend ? backend.toLowerCase() : "unknown",
-        project: text.match(/project key `([A-Z][A-Z0-9_]*)`/)?.[1],
-        baseUrl: text.match(/https:\/\/[\w.-]+\.atlassian\.net/)?.[0],
+        backend: declaration ? declaration[1].toLowerCase() : "unknown",
+        project: sentence.match(/project key\s+`([A-Z][A-Z0-9_]*)`/i)?.[1]?.toUpperCase(),
+        // The host must end at .atlassian.net, so the declared site is always Atlassian's, never a lookalike.
+        baseUrl: sentence.match(/https:\/\/[\w-]+(\.[\w-]+)*\.atlassian\.net(?![\w-]|\.[\w-])/)?.[0],
         file,
       };
     }
-    if (dirname(dir) === dir) return null;
+    // Stop at the repo root (git or jj): a declaration in a folder above the repo (~/dev, say) is not this repo's.
+    if (existsSync(join(dir, ".git")) || existsSync(join(dir, ".jj")) || dirname(dir) === dir) return null;
   }
 }
 
@@ -266,7 +271,13 @@ async function getIssue(key) {
 
   console.log(`  URL:      ${JIRA_BASE_URL}/browse/${issue.key}`);
 
-  if (f.parent) await printParent(f.parent.key);
+  // A subtask's parent is a story, not an epic: name it from the fields already here and skip the
+  // second request, which exists only to fetch an epic's Implementation Decisions.
+  if (f.parent && f.issuetype?.subtask) {
+    console.log(`\nParent: ${f.parent.key}: ${f.parent.fields?.summary ?? ""}`);
+  } else if (f.parent) {
+    await printParent(f.parent.key);
+  }
 }
 
 /**
@@ -281,7 +292,7 @@ function collectUrls(adf) {
 
   /** @param {any} node */
   const walk = (node) => {
-    for (const mark of node.marks ?? []) if (mark.type === "link") urls.push(mark.attrs.href);
+    for (const mark of node.marks ?? []) if (mark.type === "link") urls.push(mark.attrs?.href);
     if (node.type === "inlineCard" || node.type === "blockCard") urls.push(node.attrs?.url);
     if (node.type === "text") urls.push(...(node.text?.match(/https?:\/\/\S+/g) ?? []));
     node.content?.forEach(walk);
@@ -298,7 +309,7 @@ function collectUrls(adf) {
  * 32,767 characters. The description is then a summary plus a link, so the agent must read that file
  * for the Implementation Decisions; we report the path and leave the reading to the agent.
  *
- * @param {string} parentKey - Parent issue key, normally the epic.
+ * @param {string} parentKey - Parent epic's key (subtasks, whose parent is a story, never reach here).
  */
 async function printParent(parentKey) {
   const parent = await api("GET", `/issue/${parentKey}?fields=summary,description,issuetype`);
@@ -309,11 +320,14 @@ async function printParent(parentKey) {
   console.log(`  ${kind} description (Implementation Decisions, or a summary linking to the blueprint):`);
   console.log(`    ${fromAdf(pf.description).replace(/\n/g, "\n    ")}`);
 
-  const blueprintUrl = collectUrls(pf.description).find((u) => /docs\/epics\/[^\s)]+\.md/.test(u));
-  const blueprintPath = blueprintUrl?.match(/docs\/epics\/[^\s)#?]+\.md/)?.[0];
+  // URLs first, so the full link can be reported; then a bare repo path typed as plain text.
+  const blueprintPattern = /docs\/epics\/[^\s)#?`'"]+\.md/;
+  const blueprintUrl = collectUrls(pf.description).find((u) => blueprintPattern.test(u));
+  const blueprintPath = (blueprintUrl ?? fromAdf(pf.description)).match(blueprintPattern)?.[0];
   if (blueprintPath) {
     console.log(`  Blueprint: ${blueprintPath}`);
-    console.log(`    Read this file from the repo: it holds the epic's Implementation Decisions. Link: ${blueprintUrl}`);
+    const link = blueprintUrl ? ` Link: ${blueprintUrl}` : "";
+    console.log(`    Read this file from the repo: it holds the epic's Implementation Decisions.${link}`);
   }
 }
 
@@ -467,17 +481,23 @@ async function listComments(key) {
   }
 }
 
+const openSprintClause = "sprint in openSprints()";
+// A story moved back to the backlog from a closed sprint keeps that sprint in its field, so "no sprint"
+// alone would skip it. `not in` never matches an empty field, hence the explicit EMPTY.
+const backlogClause = "(sprint is EMPTY OR sprint not in (openSprints(), futureSprints()))";
+
 /**
  * Build the JQL for the next story. Rank order is board order. The sprint clause is a parameter
- * because the open sprint is tried first and the sprintless backlog only when it is empty.
+ * because the open sprint is tried first and the backlog only when it is empty.
  *
  * @param {string} project - Project key.
- * @param {string} sprintClause - `sprint in openSprints()` or `sprint is EMPTY`.
+ * @param {string} sprintClause - `openSprintClause` or `backlogClause`.
  * @param {string} [label] - Optional label filter, e.g. ready-for-agent.
  * @returns {string} JQL.
  */
 function nextJql(project, sprintClause, label) {
-  const clauses = [`project = ${project}`, "issuetype = Story", 'statusCategory = "To Do"', sprintClause];
+  // Quoted, like the label: a bare value that is a reserved word or holds an operator would rewrite the query.
+  const clauses = [`project = ${JSON.stringify(project)}`, "issuetype = Story", 'statusCategory = "To Do"', sprintClause];
   if (label) clauses.push(`labels = ${JSON.stringify(label)}`);
   return `${clauses.join(" AND ")} ORDER BY Rank ASC`;
 }
@@ -489,7 +509,7 @@ function nextJql(project, sprintClause, label) {
  * @param {string} [label] - Optional label filter.
  */
 async function nextIssue(project, label) {
-  for (const sprintClause of ["sprint in openSprints()", "sprint is EMPTY"]) {
+  for (const sprintClause of [openSprintClause, backlogClause]) {
     const data = await api("POST", "/search/jql", {
       jql: nextJql(project, sprintClause, label),
       maxResults: 1,
@@ -499,7 +519,7 @@ async function nextIssue(project, label) {
     if (issue) {
       console.log(`${issue.key}: ${issue.fields.summary}`);
       console.log(`  Status: ${issue.fields.status?.name ?? "?"}`);
-      console.log(`  Source: ${sprintClause === "sprint is EMPTY" ? "backlog" : "open sprint"}`);
+      console.log(`  Source: ${sprintClause === backlogClause ? "backlog" : "open sprint"}`);
       console.log(`  URL:    ${JIRA_BASE_URL}/browse/${issue.key}`);
       return;
     }
@@ -565,12 +585,18 @@ try {
     process.exit(0);
   }
 
-  if (tracker && tracker.backend !== "jira") {
+  // A repo on another backend refuses only the commands that would act on the repo's project; get, search,
+  // whoami and anything given --project name their target themselves. An unparseable declaration
+  // ("unknown") is ignored, leaving the env defaults.
+  const isRepoScoped = (command === "next" || command === "create") && !values.project;
+  if (tracker && tracker.backend !== "jira" && tracker.backend !== "unknown" && isRepoScoped) {
     throw new Error(`${tracker.file} declares ${tracker.backend}, not Jira: this recipe does not apply`);
   }
   // Precedence: --project flag, then the repo declaration, then the JIRA_PROJECT default.
-  JIRA_PROJECT = tracker?.project ?? JIRA_PROJECT;
-  JIRA_BASE_URL = tracker?.baseUrl ?? JIRA_BASE_URL;
+  if (tracker?.backend === "jira") {
+    JIRA_PROJECT = tracker.project ?? JIRA_PROJECT;
+    JIRA_BASE_URL = tracker.baseUrl ?? JIRA_BASE_URL;
+  }
   if (values.project) JIRA_PROJECT = values.project;
 
   if (!JIRA_BASE_URL || !JIRA_EMAIL || !JIRA_API_TOKEN) {
@@ -612,7 +638,8 @@ try {
       if (!positionals[0]) throw new Error("Usage: jira.mjs update <issue-key> [options]");
       const key = positionals[0];
       if (values.status) await transitionIssue(key, values.status);
-      const { status: _s, project: _p, type: _t, max: _m, ...updateFields } = values;
+      // label is a `next` filter, not an issue field: left in, it alone would trip "Nothing to update".
+      const { status: _s, project: _p, type: _t, max: _m, label: _l, ...updateFields } = values;
       if (Object.keys(updateFields).length) await updateIssue(key, updateFields);
       break;
     }

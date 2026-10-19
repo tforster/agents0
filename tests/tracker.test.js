@@ -121,13 +121,13 @@ describe("tracker skill", () => {
     assert.strictEqual(requests.length, 1);
     assert.strictEqual(
       requests[0].body.jql,
-      'project = CA AND issuetype = Story AND statusCategory = "To Do" AND sprint in openSprints() AND labels = "ready-for-agent" ORDER BY Rank ASC'
+      'project = "CA" AND issuetype = Story AND statusCategory = "To Do" AND sprint in openSprints() AND labels = "ready-for-agent" ORDER BY Rank ASC'
     );
     assert.strictEqual(requests[0].body.maxResults, 1);
     assert.match(stdout, /CA-7: Summary of CA-7/);
   });
 
-  it("AC2: next falls back to the backlog by Rank when the open sprint has nothing", () => {
+  it("AC2: next falls back to the backlog by Rank, including stories returned from a closed sprint, when the open sprint has nothing", () => {
     const { stdout, requests } = runJira(["next"], {
       cwd: makeRepo(trackerDeclaration),
       routes: [{ method: "POST", path: "/search/jql", json: { issues: [] }, once: true }, searchHit("CA-9")],
@@ -136,7 +136,7 @@ describe("tracker skill", () => {
     assert.strictEqual(requests.length, 2);
     assert.strictEqual(
       requests[1].body.jql,
-      'project = CA AND issuetype = Story AND statusCategory = "To Do" AND sprint is EMPTY ORDER BY Rank ASC'
+      'project = "CA" AND issuetype = Story AND statusCategory = "To Do" AND (sprint is EMPTY OR sprint not in (openSprints(), futureSprints())) ORDER BY Rank ASC'
     );
     assert.match(stdout, /CA-9/);
     assert.match(stdout, /backlog/);
@@ -298,7 +298,7 @@ describe("tracker skill", () => {
     const { requests } = runJira(["next", "--project", "OTHER"], { cwd: repo, routes: [searchHit("OTHER-1")] });
 
     assert.ok(requests[0].url.startsWith("https://cpc-aws.atlassian.net/rest/api/3/"));
-    assert.match(requests[0].body.jql, /^project = OTHER AND /);
+    assert.match(requests[0].body.jql, /^project = "OTHER" AND /);
   });
 
   it("AC9: a repo that declares another backend is refused, and a repo with no declaration resolves to null", () => {
@@ -309,6 +309,120 @@ describe("tracker skill", () => {
 
     const none = runJira(["resolve"]);
     assert.deepStrictEqual(JSON.parse(none.stdout), { backend: null });
+  });
+
+  it("AC9: only the declaration sentence is read, so a migration note or another site's link cannot win", () => {
+    const declaration =
+      "# Issue Tracker\n\nWe migrated from **Paca**; see https://other.atlassian.net/wiki and project key `OLD`.\n\n" +
+      "Issues are tracked in Jira. Project key `CA`, on https://cpc-aws.atlassian.net.\n";
+    const resolved = JSON.parse(runJira(["resolve"], { cwd: makeRepo(declaration) }).stdout);
+
+    assert.strictEqual(resolved.backend, "jira");
+    assert.strictEqual(resolved.project, "CA");
+    assert.strictEqual(resolved.baseUrl, "https://cpc-aws.atlassian.net");
+  });
+
+  it("AC9: a lookalike host is not taken as the declared site", () => {
+    const declaration = "Issues are tracked in **Jira**, project key `CA`, on https://x.atlassian.net.evil.com.\n";
+    const resolved = JSON.parse(runJira(["resolve"], { cwd: makeRepo(declaration) }).stdout);
+
+    assert.strictEqual(resolved.baseUrl, undefined);
+  });
+
+  it("AC9: the walk stops at the repo root, so a declaration above it is ignored", () => {
+    const parent = makeRepo("Issues are tracked in **Paca**.\n");
+    const repo = path.join(parent, "repo");
+    mkdirSync(path.join(repo, ".git"), { recursive: true });
+
+    assert.deepStrictEqual(JSON.parse(runJira(["resolve"], { cwd: repo }).stdout), { backend: null });
+  });
+
+  it("AC9: the walk also stops at a jj repo root that has no .git", () => {
+    const parent = makeRepo("Issues are tracked in **Paca**.\n");
+    const repo = path.join(parent, "repo");
+    mkdirSync(path.join(repo, ".jj"), { recursive: true });
+
+    assert.deepStrictEqual(JSON.parse(runJira(["resolve"], { cwd: repo }).stdout), { backend: null });
+  });
+
+  it("AC9: another backend's repo still allows get, search, whoami and --project", () => {
+    const cwd = makeRepo("Issues are tracked in **Paca**, project `X`.\n");
+    const whoami = runJira(["whoami"], {
+      cwd,
+      routes: [{ method: "GET", path: "/myself", json: { displayName: "Me", emailAddress: "me@example.com" } }],
+    });
+    assert.strictEqual(whoami.status, 0);
+
+    const next = runJira(["next", "--project", "CA"], { cwd, routes: [searchHit("CA-1")] });
+    assert.strictEqual(next.status, 0);
+    assert.ok(next.requests[0].url.startsWith("https://example.atlassian.net/"), "Paca repo does not set the Jira site");
+  });
+
+  it("AC3: get finds a blueprint path typed as plain text, and tolerates a link mark without attrs", () => {
+    const description = {
+      type: "doc",
+      version: 1,
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Broken link", marks: [{ type: "link" }] },
+            { type: "text", text: " Full blueprint: docs/epics/CA-1-feature.md" },
+          ],
+        },
+      ],
+    };
+    const { stdout, status } = runJira(["get", "CA-10"], {
+      routes: [
+        { method: "GET", path: "/issue/CA-10", json: { key: "CA-10", fields: { summary: "S", parent: { key: "CA-1" } } } },
+        { method: "GET", path: "/issue/CA-1?", json: { key: "CA-1", fields: { summary: "E", description } } },
+      ],
+    });
+
+    assert.strictEqual(status, 0);
+    assert.match(stdout, /Blueprint: docs\/epics\/CA-1-feature\.md/);
+    assert.doesNotMatch(stdout, /Link:/);
+  });
+
+  it("AC3: get names a subtask's parent story without fetching it as an epic", () => {
+    const { stdout, requests } = runJira(["get", "CA-15"], {
+      routes: [
+        {
+          method: "GET",
+          path: "/issue/CA-15",
+          json: {
+            key: "CA-15",
+            fields: {
+              summary: "Sub",
+              issuetype: { name: "Subtask", subtask: true },
+              parent: { key: "CA-10", fields: { summary: "The story" } },
+            },
+          },
+        },
+      ],
+    });
+
+    assert.strictEqual(requests.length, 1);
+    assert.match(stdout, /Parent: CA-10: The story/);
+    assert.doesNotMatch(stdout, /Implementation Decisions/);
+  });
+
+  it("AC5: update with --status and --label transitions without failing on the next-only label", () => {
+    const { status, requests } = runJira(["update", "CA-10", "--status", "Done", "--label", "ready-for-agent"], {
+      routes: [
+        { method: "GET", path: "/issue/CA-10/transitions", json: { transitions: [{ id: "31", name: "Done" }] } },
+        { method: "POST", path: "/issue/CA-10/transitions", status: 204 },
+      ],
+    });
+
+    assert.strictEqual(status, 0);
+    assert.strictEqual(requests.length, 2);
+  });
+
+  it("AC2: next quotes the project key in JQL", () => {
+    const { requests } = runJira(["next", "--project", "CA OR project = HR"], { routes: [searchHit("CA-1")] });
+
+    assert.match(requests[0].body.jql, /^project = "CA OR project = HR" AND /);
   });
 
   it("AC9: credentials come from env vars, and missing ones fail before any request", () => {

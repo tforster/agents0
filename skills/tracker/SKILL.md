@@ -9,7 +9,7 @@ One contract, one recipe per backend, no adapter library. Callers use the five o
 
 ## Resolve the backend
 
-Read the repo's `docs/agents/issue-tracker.md` (found by walking up from the current directory). It must say, in prose, which tracker the repo uses, for Jira: ``Issues are tracked in **Jira**, project key `CA`, on `https://example.atlassian.net`.``
+Read the repo's `docs/agents/issue-tracker.md` (found by walking up from the current directory, stopping at the repo root). It must say, in prose on one line, which tracker the repo uses; only that line is read, for Jira: ``Issues are tracked in **Jira**, project key `CA`, on `https://example.atlassian.net`.``
 
 ```bash
 node ${CLAUDE_SKILL_DIR}/../jira/scripts/jira.mjs resolve    # {"backend":"jira","project":"CA","baseUrl":"https://...","file":"..."}
@@ -46,11 +46,11 @@ The recipe is the `jira` skill's script. It is the one Jira client; there is no 
 
 ### 1. next
 
-Open sprint first, ordered by Rank ascending; if it has nothing, the backlog (no sprint) by Rank. Always Story type and status category To Do, so `next` never returns a story already started. Rank is the order on the board, so the architect's ordering is the agent's ordering.
+Open sprint first, ordered by Rank ascending; if it has nothing, the backlog (no sprint, or only closed ones) by Rank. Always Story type and status category To Do, so `next` never returns a story already started. Rank is the order on the board, so the architect's ordering is the agent's ordering.
 
 ### 2. get
 
-Prints the story, then its parent: type, key, summary and description. When the parent's description links to a repo blueprint (`docs/epics/<key>-<slug>.md`, as a link, a smart card or a typed URL), it adds a `Blueprint:` line with that repo path. Read that file: when a project keeps blueprints in the repo, the epic's description is only a summary and the file is the only copy of its decisions (Jira descriptions cap at 32,767 characters).
+Prints the story, then its parent epic: type, key, summary and description. A subtask shows only its parent story's key and summary. When the parent's description links to a repo blueprint (`docs/epics/<key>-<slug>.md`, as a link, a smart card, a typed URL or a bare path), it adds a `Blueprint:` line with that repo path. Read that file: when a project keeps blueprints in the repo, the epic's description is only a summary and the file is the only copy of its decisions (Jira descriptions cap at 32,767 characters).
 
 ### 3. create and links
 
