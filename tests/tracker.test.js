@@ -551,3 +551,30 @@ describe("blueprints (AGEN-52)", () => {
     assert.doesNotMatch(stdout, /Blueprint:/);
   });
 });
+
+describe("plain-text URL punctuation (AGEN-53)", () => {
+  it("AC1: a blueprint URL typed in plain text prints its Link without the punctuation that follows it", () => {
+    const url = "https://github.com/Canadian-Pork-Council/cpc.platform/blob/main/docs/blueprints/CA-1253-pipelines.md";
+    for (const text of [`(see ${url}).`, `See ${url}.`, `"${url}",`, `[${url}];`, `${url}?!`]) {
+      const { stdout, status } = getStory(adf(`Summary ${text}`), undefined);
+
+      assert.strictEqual(status, 0);
+      assert.ok(stdout.includes(`Link: ${url}\n`), `clean link from ${text}`);
+    }
+  });
+
+  it("AC2: link marks and smart cards keep their URL exactly as written, even ending in punctuation", () => {
+    const url = "https://github.com/Canadian-Pork-Council/cpc.platform/blob/main/docs/blueprints/CA-1253-pipelines.md?view=(raw)";
+    const link = { type: "text", text: "Blueprint", marks: [{ type: "link", attrs: { href: url } }] };
+    const descriptions = [
+      { type: "doc", version: 1, content: [{ type: "paragraph", content: [link] }] },
+      { type: "doc", version: 1, content: [{ type: "inlineCard", attrs: { url } }] },
+    ];
+
+    for (const description of descriptions) {
+      const { stdout } = getStory(description, undefined);
+
+      assert.ok(stdout.includes(`Link: ${url}\n`));
+    }
+  });
+});

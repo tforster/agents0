@@ -295,7 +295,12 @@ function collectUrls(adf) {
   const walk = (node) => {
     for (const mark of node.marks ?? []) if (mark.type === "link") urls.push(mark.attrs?.href);
     if (node.type === "inlineCard" || node.type === "blockCard") urls.push(node.attrs?.url);
-    if (node.type === "text") urls.push(...(node.text?.match(/https?:\/\/\S+/g) ?? []));
+    if (node.type === "text") {
+      // \S+ runs to the next space, so prose punctuation after a typed URL, as in "(see <url>).", is
+      // captured with it; strip it so the reported Link opens.
+      const typedUrls = node.text?.match(/https?:\/\/\S+/g) ?? [];
+      urls.push(...typedUrls.map((url) => url.replace(/[).,;:!?'"\]]+$/, "")));
+    }
     node.content?.forEach(walk);
   };
 
