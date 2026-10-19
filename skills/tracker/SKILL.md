@@ -24,12 +24,12 @@ node ${CLAUDE_SKILL_DIR}/../jira/scripts/jira.mjs resolve    # {"backend":"jira"
 | Operation    | Does                                                                                          | Returns                                                                       |
 | ------------ | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `next`       | Picks the next story to work, in board order. Optional label filter, e.g. `ready-for-agent`   | One story (key, summary, source), or "No eligible story"                      |
-| `get`        | Reads one story with its parent epic                                                          | Story fields, epic description, and the epic's blueprint file path if linked  |
+| `get`        | Reads one story with its parent epic                                                          | Story fields, epic description, and each one's blueprint path if linked       |
 | `comment`    | Adds a comment to a story                                                                     | Confirmation                                                                  |
 | `transition` | Moves a story to a named status                                                               | Confirmation, or the available statuses when the name is wrong                |
 | `create`     | Creates a story, optionally under an epic and with blocking links to other stories            | The new key and URL                                                           |
 
-After `get`, read the blueprint file it reports (the repo path, relative to the repo root) before building: it holds the epic's Implementation Decisions.
+After `get`, read every blueprint file it reports (the repo path, relative to the repo root) before building: each holds the decisions of the story or epic it is labelled with.
 
 ## Jira recipe
 
@@ -50,7 +50,7 @@ Open sprint first, ordered by Rank ascending; if it has nothing, the backlog (no
 
 ### 2. get
 
-Prints the story, then its parent epic: type, key, summary and description. A subtask shows only its parent story's key and summary. When the parent's description links to a repo blueprint (`docs/epics/<key>-<slug>.md`, as a link, a smart card, a typed URL or a bare path), it adds a `Blueprint:` line with that repo path. Read that file: when a project keeps blueprints in the repo, the epic's description is only a summary and the file is the only copy of its decisions (Jira descriptions cap at 32,767 characters).
+Prints the story, then its parent epic: type, key, summary and description. A subtask shows only its parent story's key and summary. When the story's own description or its parent's links to a repo blueprint (`docs/blueprints/<key>-<slug>.md`, as a link, a smart card, a typed URL or a bare path), it adds a `Blueprint:` line with that repo path, labelled with the issue it belongs to, e.g. `(Story CA-10)` or `(Epic CA-1)`; when both link one, both lines appear. Read each file: when a project keeps blueprints in the repo, that issue's description is only a summary and the file is the only copy of its decisions (Jira descriptions cap at 32,767 characters). The older `docs/epics/` folder is still recognised while projects migrate.
 
 ### 3. create and links
 
