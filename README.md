@@ -109,7 +109,7 @@ flowchart TD
 
 ### 3.3. Enforcement
 
-What can an agent not talk its way past? Hooks cost no context and fire on the tool call, whichever agent made it. None of these exist yet; today Agents0's only hooks are the rule injections above.
+What can an agent not talk its way past? Hooks cost no context and fire on the tool call, whichever agent made it. Most of these do not exist yet (green ones do); besides the rule injections above, today's only hook is PHP format and lint.
 
 ```mermaid
 flowchart LR
@@ -121,10 +121,11 @@ flowchart LR
   git -- yes --> gitGate["Git gate -- BLOCK"]:::planned
   edit(["Edit or Write"]) --> fileType{"File type?"}
   fileType -- "*.js" --> jsLint["oxfmt and oxlint"]:::planned
-  fileType -- "*.php" --> phpLint["php-cs-fixer and php -l"]:::planned
+  fileType -- "*.php" --> phpLint["php-cs-fixer and php -l"]:::exists
   fileType -- "root CLAUDE.md, GLOSSARY*" --> budget["Warn when always-loaded<br/>context grows past budget"]:::planned
   stop(["Stop"]) --> completion["Completion gate: lint,<br/>typecheck, test -- BLOCK"]:::planned
 
+  classDef exists fill:#dcfce7,stroke:#16a34a,color:#14532d
   classDef planned fill:#f1f5f9,stroke:#64748b,color:#334155,stroke-dasharray:5 3
 ```
 

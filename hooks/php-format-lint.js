@@ -6,7 +6,6 @@
 import { execFile } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 /**
@@ -27,7 +26,7 @@ const phpSyntaxErrorStatus = 255;
  * @param {string} repoRoot - Absolute path of the repo root.
  * @returns {Promise<string | undefined>} major.minor, such as "7.4"; undefined when the repo declares none.
  */
-export async function readProductionPhp(repoRoot) {
+async function readProductionPhp(repoRoot) {
   // A repo without composer.json is normal (legacy PHP); only that absence is swallowed, not a malformed file.
   const text = await readFile(path.join(repoRoot, "composer.json"), "utf8").catch((/** @type {ExecError} */ error) => {
     if (error.code === "ENOENT") return "{}";
@@ -62,7 +61,8 @@ async function lintOnProduction(repoRoot, relativeFile, version) {
  *
  * @param {string} repoRoot - Absolute path of the repo root.
  * @param {string} relativeFile - Changed file, relative to the root.
- * @returns {Promise<string | undefined>} The fixer's complaint, or undefined when it passed or did not run.
+ * @returns {Promise<{ problem?: string, reformatted: boolean }>} The fixer's complaint, if any, and whether it
+ *   rewrote the file.
  */
 async function formatWithRepoConfig(repoRoot, relativeFile) {
   // The same two names, in the same order, that php-cs-fixer looks for itself.
@@ -75,16 +75,18 @@ async function formatWithRepoConfig(repoRoot, relativeFile) {
       ))
     )
       continue;
+    const before = await readFile(path.join(repoRoot, relativeFile), "utf8");
     try {
       await run("php-cs-fixer", ["fix", `--config=${config}`, "--quiet", relativeFile], { cwd: repoRoot });
     } catch (error) {
       const { code, stdout, stderr } = /** @type {ExecError} */ (error);
       // A missing binary is a machine without the fixer, not a problem with the file.
-      if (code === "ENOENT") return;
-      return `${stdout}${stderr}`.trim();
+      if (code === "ENOENT") return { reformatted: false };
+      return { problem: `${stdout}${stderr}`.trim(), reformatted: false };
     }
-    return;
+    return { reformatted: before !== (await readFile(path.join(repoRoot, relativeFile), "utf8")) };
   }
+  return { reformatted: false };
 }
 
 /**
@@ -97,34 +99,37 @@ async function handleEvent(event) {
   const filePath = event.tool_input.file_path;
   // vendor/ is third-party code the repo does not own, wherever it sits in the tree.
   if (path.extname(filePath) !== ".php" || filePath.split(path.sep).includes("vendor")) return;
-  const { stdout } = await run("git", ["rev-parse", "--show-toplevel"], { cwd: path.dirname(filePath) });
-  const repoRoot = stdout.trim();
+  // A PHP file outside any repo (a scratch file) has no config or declaration to honour: nothing to do.
+  const repoRoot = await run("git", ["rev-parse", "--show-toplevel"], { cwd: path.dirname(filePath) }).then(
+    ({ stdout }) => stdout.trim(),
+    () => undefined
+  );
+  if (!repoRoot) return;
   const relativeFile = path.relative(repoRoot, filePath);
 
   const problems = [];
-  const formatError = await formatWithRepoConfig(repoRoot, relativeFile);
-  if (formatError) problems.push(`php-cs-fixer failed on ${relativeFile}:\n${formatError}`);
+  const { problem, reformatted } = await formatWithRepoConfig(repoRoot, relativeFile);
+  if (problem) problems.push(`php-cs-fixer failed on ${relativeFile}:\n${problem}`);
+  // The fixer rewrites the file after the Edit, so Claude's copy is stale: its next Edit would fail, or it
+  // would reason about old content.
+  const notes = reformatted ? [`php-cs-fixer reformatted ${relativeFile}; re-read before editing it again`] : [];
 
   // No declared version means no known production target, so there is nothing to lint against.
   const version = await readProductionPhp(repoRoot);
   if (version) {
     const lint = await lintOnProduction(repoRoot, relativeFile, version);
     if (lint.status === "error") problems.push(`php -l on php ${version} reports ${relativeFile}:\n${lint.output}`);
-    if (lint.status === "unavailable" && problems.length === 0) {
-      return { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: "php -l skipped: docker unavailable" } };
-    }
+    if (lint.status === "unavailable") notes.push("php -l skipped: docker unavailable");
   }
-  if (problems.length > 0) return { decision: "block", reason: problems.join("\n\n") };
+  if (problems.length > 0) return { decision: "block", reason: [...problems, ...notes].join("\n\n") };
+  if (notes.length > 0) return { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: notes.join("\n") } };
 }
 
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
-// Imported by tests for readProductionPhp; only a direct `node php-format-lint.js` run reads stdin.
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const chunks = [];
-  for await (const chunk of process.stdin) chunks.push(chunk);
-  const output = await handleEvent(JSON.parse(Buffer.concat(chunks).toString("utf8")));
-  if (output) process.stdout.write(JSON.stringify(output));
-}
+const chunks = [];
+for await (const chunk of process.stdin) chunks.push(chunk);
+const output = await handleEvent(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+if (output) process.stdout.write(JSON.stringify(output));
