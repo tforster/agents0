@@ -118,7 +118,7 @@ export async function removeStaleConfigLock(cwd) {
  */
 
 /**
- * Lists the top-level entries of a directory that look like placeholders: empty regular files, or
+ * Lists the top-level entries of a directory that look like placeholders: empty read-only regular files, or
  * character devices (the sandbox mounts /dev/null over some, such as .claude/agents). Symlinks never count.
  *
  * @param {string} directory - Directory to scan, absolute.
@@ -132,14 +132,15 @@ async function listCandidates(directory) {
     throw error;
   });
   for (const name of entries) {
-    const stats = await lstat(path.join(directory, name));
-    if ((stats.isFile() && stats.size === 0) || stats.isCharacterDevice()) names.push(name);
+    const entry = path.join(directory, name);
+    // Read-only too, not just empty: a user's own empty ignored file (.env, .claude/settings.local.json) is writable.
+    if ((await isPlaceholder(entry)) || (await lstat(entry)).isCharacterDevice()) names.push(name);
   }
   return names;
 }
 
 /**
- * Sweeps the empty placeholder files out of the repository root and `.claude/`, plus .git/config.lock.
+ * Sweeps the empty read-only placeholder files out of the repository root and `.claude/`, plus .git/config.lock.
  *
  * A candidate is removed only when git status shows it untracked, ignored or just added (an added one also
  * leaves the index). A tracked path is skipped, so a deliberately empty tracked file is never touched.

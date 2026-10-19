@@ -256,6 +256,8 @@ describe("AGEN-23 placeholder sweep", () => {
     await writeFile(path.join(root, ".gitmodules"), "");
     await git(root, ["add", ".gitmodules"]);
     await git(root, ["commit", "--quiet", "-m", "empty on purpose"]);
+    // Read-only too, so the file matches the placeholder shape and only being tracked protects it.
+    await chmod(path.join(root, ".gitmodules"), 0o444);
 
     const { stdout } = await runSweep(root);
 
@@ -269,9 +271,9 @@ describe("AGEN-23 placeholder sweep", () => {
     await git(root, ["add", ".gitignore"]);
     await git(root, ["commit", "--quiet", "-m", "ignore"]);
     await mkdir(path.join(root, ".claude"));
-    await writeFile(path.join(root, ".zshrc"), "");
-    await writeFile(path.join(root, ".mcp.json"), "");
-    await writeFile(path.join(root, ".claude", "skills"), "");
+    await makePlaceholder(path.join(root, ".zshrc"));
+    await makePlaceholder(path.join(root, ".mcp.json"));
+    await makePlaceholder(path.join(root, ".claude", "skills"));
     await writeFile(path.join(root, ".bashrc"), "export A=1\n");
     await writeFile(path.join(root, ".claude", "settings.json"), "{}\n");
 
@@ -282,9 +284,24 @@ describe("AGEN-23 placeholder sweep", () => {
     for (const kept of [".bashrc", ".claude/settings.json"]) assert.ok(await exists(path.join(root, kept)), `${kept} was removed`);
   });
 
+  it("AGEN-23 AC3: an ignored, writable, empty file the user made (.env) survives; only read-only placeholders go", async () => {
+    const root = await makeRepository();
+    await writeFile(path.join(root, ".gitignore"), ".env\n");
+    await git(root, ["add", ".gitignore"]);
+    await git(root, ["commit", "--quiet", "-m", "ignore"]);
+    await mkdir(path.join(root, ".claude"));
+    await writeFile(path.join(root, ".env"), "");
+    await writeFile(path.join(root, ".claude", "settings.local.json"), "");
+
+    await runSweep(root);
+
+    assert.ok(await exists(path.join(root, ".env")), "a writable empty .env was removed");
+    assert.ok(await exists(path.join(root, ".claude", "settings.local.json")), "a writable empty settings file was removed");
+  });
+
   it("AGEN-23 AC3: a placeholder swept into the index by a broad git add leaves the index too", async () => {
     const root = await makeRepository();
-    await writeFile(path.join(root, ".profile"), "");
+    await makePlaceholder(path.join(root, ".profile"));
     await git(root, ["add", ".profile"]);
     assert.ok((await indexedPaths(root)).includes(".profile"));
 
@@ -296,7 +313,7 @@ describe("AGEN-23 placeholder sweep", () => {
 
   it("AGEN-23 AC3: --dry-run reports what would go and removes nothing", async () => {
     const root = await makeRepository();
-    await writeFile(path.join(root, ".zshrc"), "");
+    await makePlaceholder(path.join(root, ".zshrc"));
 
     const { stdout } = await runSweep(root, ["--dry-run"]);
 
