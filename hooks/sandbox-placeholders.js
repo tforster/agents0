@@ -2,9 +2,11 @@
 //
 // On Linux and WSL2 the Bash sandbox holds a write denial on a protected path that does not exist yet by
 // creating an empty read-only (0444) placeholder there, to bind-mount over. The sandbox's docs say it
-// removes the placeholder afterwards; in practice (Claude Code 2.1.29x) it often does not. The one that
-// breaks work is .git/config.lock, which git reads as a held lock. Hooks run outside the sandbox, so a
-// hook can delete it.
+// removes the placeholder afterwards; in practice (Claude Code 2.1.29x) it often does not. The bubblewrap
+// cleanup is per process with no refcount, so concurrent sessions in one project root race
+// (anthropics/claude-code#94008; also #78818, #101155, #102516). The one placeholder that breaks work is
+// .git/config.lock, which git reads as a held lock. Hooks run outside the sandbox, so a hook can delete
+// it. This file exists until upstream fixes that.
 //
 // Two callers: hooks/clean-config-lock.js (PostToolUse, the lock only) and hooks/sweep-placeholders.js
 // (the manual sweep of the repo root and .claude/).
