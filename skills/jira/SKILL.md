@@ -21,8 +21,8 @@ export JIRA_PROJECT=PROJ       # default project key; omit to pass --project on 
 **Custom field IDs** — run the discovery script once and export these two variables:
 
 ```bash
-node scripts/discover-fields.mjs story        # find User Story field ID
-node scripts/discover-fields.mjs acceptance   # find Acceptance Criteria field ID
+node ${CLAUDE_SKILL_DIR}/scripts/discover-fields.mjs story        # find User Story field ID
+node ${CLAUDE_SKILL_DIR}/scripts/discover-fields.mjs acceptance   # find Acceptance Criteria field ID
 
 export JIRA_FIELD_STORY=customfield_XXXXX
 export JIRA_FIELD_AC=customfield_XXXXX
@@ -33,19 +33,19 @@ See [references/custom-fields.md](references/custom-fields.md) for full details.
 Verify with:
 
 ```bash
-node scripts/jira.mjs whoami
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs whoami
 ```
 
 ## Read an issue
 
 ```bash
-node scripts/jira.mjs get PROJ-123
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs get PROJ-123
 ```
 
 ## Create an issue
 
 ```bash
-node scripts/jira.mjs create \
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs create \
   --project PROJ \
   --type Story \
   --summary "User can reset their password" \
@@ -61,7 +61,7 @@ node scripts/jira.mjs create \
 Subtasks require `--parent <key>` and use `--type Subtask` (not `Task`, which ignores `parent`):
 
 ```bash
-node scripts/jira.mjs create --type Subtask --parent PROJ-42 --summary "Write the migration script"
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs create --type Subtask --parent PROJ-42 --summary "Write the migration script"
 ```
 
 Some projects' permission schemes reject self-assignment on subtasks — if `--assignee` fails on a `Subtask`, omit it and assign separately.
@@ -70,21 +70,21 @@ Some projects' permission schemes reject self-assignment on subtasks — if `--a
 
 ```bash
 # Update fields
-node scripts/jira.mjs update PROJ-123 \
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs update PROJ-123 \
   --summary "Revised summary" \
   --ac "Updated acceptance criteria"
 
 # Transition status
-node scripts/jira.mjs update PROJ-123 --status "In Progress"
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs update PROJ-123 --status "In Progress"
 
 # Both at once
-node scripts/jira.mjs update PROJ-123 --status "In Review" --story "Revised story text"
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs update PROJ-123 --status "In Review" --story "Revised story text"
 ```
 
 ## Search with JQL
 
 ```bash
-node scripts/jira.mjs search "project = PROJ AND status = 'In Progress'" --max 20
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs search "project = PROJ AND status = 'In Progress'" --max 20
 ```
 
 Common patterns:
@@ -97,17 +97,17 @@ Common patterns:
 ## Comment on an issue
 
 ```bash
-node scripts/jira.mjs comment add PROJ-123 "Deployed to staging, ready for QA."
-node scripts/jira.mjs comment list PROJ-123
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs comment add PROJ-123 "Deployed to staging, ready for QA."
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs comment list PROJ-123
 ```
 
 ## Next story, parent epic, blocking links
 
 ```bash
-node scripts/jira.mjs next --label ready-for-agent   # first by Rank: open sprint, else backlog; Story, To Do
-node scripts/jira.mjs set-parent PROJ-123 PROJ-1     # make PROJ-1 the parent epic of PROJ-123
-node scripts/jira.mjs link PROJ-10 PROJ-11           # PROJ-10 blocks PROJ-11 ("Blocks" link)
-node scripts/jira.mjs resolve                        # backend/project/site from docs/agents/issue-tracker.md
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs next --label ready-for-agent   # first by Rank: open sprint, else backlog; Story, To Do
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs set-parent PROJ-123 PROJ-1     # make PROJ-1 the parent epic of PROJ-123
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs link PROJ-10 PROJ-11           # PROJ-10 blocks PROJ-11 ("Blocks" link)
+node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs resolve                        # backend/project/site from docs/agents/issue-tracker.md
 ```
 
 `get` also prints the parent epic's description and, when it links to `docs/epics/<key>-<slug>.md`, a `Blueprint:` path to read from the repo. When the repo has `docs/agents/issue-tracker.md`, its project key and site apply (`--project` still wins). The `tracker` skill wraps these commands in a backend-neutral contract.

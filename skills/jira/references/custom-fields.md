@@ -34,9 +34,9 @@ All three accept **plain text**. Multi-line content uses `\n` as a separator:
 Run the discovery script with a search term to filter results:
 
 ```bash
-node scripts/discover-fields.mjs story        # find User Story
-node scripts/discover-fields.mjs acceptance   # find Acceptance Criteria
-node scripts/discover-fields.mjs              # list all custom fields
+node ${CLAUDE_SKILL_DIR}/scripts/discover-fields.mjs story        # find User Story
+node ${CLAUDE_SKILL_DIR}/scripts/discover-fields.mjs acceptance   # find Acceptance Criteria
+node ${CLAUDE_SKILL_DIR}/scripts/discover-fields.mjs              # list all custom fields
 ```
 
 Example output:
