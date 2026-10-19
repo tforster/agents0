@@ -16,8 +16,8 @@ import { promisify } from "node:util";
 
 const run = promisify(execFile);
 const hookPath = path.resolve(import.meta.dirname, "..", "hooks", "account-gate.js");
-const personal = "troy.forster@gmail.com";
-const work = "forster@cpc-ccp.com";
+const personal = "you@personal.example";
+const work = "you@work.example";
 const accounts = JSON.stringify({ tforster: personal, "Canadian-Pork-Council": work });
 
 /**
@@ -133,12 +133,24 @@ describe("account gate hook", () => {
     assert.equal(stdout, "");
   });
 
-  it("AGEN-22 AC3: malformed ClaudeAccounts blocks, naming the variable and the parse error", async () => {
-    const cwd = await makeRepo("git@github.com:tforster/agents0.git");
-    const { stdout } = await runHook({ cwd, email: work, accountMap: "{tforster: nope" });
-    const output = JSON.parse(stdout);
-    assert.equal(output.decision, "block");
-    assert.match(output.reason, /ClaudeAccounts/);
-    assert.match(output.reason, /JSON/);
-  });
+  /** @type {[string, string, RegExp][]} */
+  const badMaps = [
+    ["not JSON", "{tforster: nope", /JSON/],
+    ["a number", "5", /JSON object/],
+    ["a string", '"tforster"', /JSON object/],
+    ["an array", "[]", /JSON object/],
+    ["null", "null", /JSON object/],
+    ["an object with a non-string value", '{"tforster":1}', /JSON object/],
+  ];
+  for (const [name, accountMap, message] of badMaps) {
+    it(`AGEN-22 AC3: ClaudeAccounts that is ${name} blocks, naming the variable`, async () => {
+      const cwd = await makeRepo("git@github.com:tforster/agents0.git");
+      const { stdout, code } = await runHook({ cwd, email: work, accountMap });
+      assert.equal(code, 0);
+      const output = JSON.parse(stdout);
+      assert.equal(output.decision, "block");
+      assert.match(output.reason, /ClaudeAccounts/);
+      assert.match(output.reason, message);
+    });
+  }
 });

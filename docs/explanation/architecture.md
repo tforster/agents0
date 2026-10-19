@@ -76,7 +76,7 @@ Not a rule: a global `UserPromptSubmit` hook, `hooks/account-gate.js`, refuses a
 - **The map** is the `ClaudeAccounts` environment variable, a JSON object of owner to account email, exported from the user's shell profile. It is not in the repo because the repo is public, and not in `plugin.json` `userConfig` because object values are unverified there. Owner and email match case-insensitively
 - **The owner** is the first path segment of `git remote get-url origin`, in the scp, `https://` and `ssh://` forms, with no host special cases: an Azure DevOps SSH remote yields `v3`, which is not in the map, and passes
 - **The account** is `oauthAccount.emailAddress` in `$CLAUDE_CONFIG_DIR/.claude.json`, else `~/.claude.json`
-- **Passes silently** when it cannot tell: variable unset, no repo or `origin`, owner not in the map, no signed-in account. A set but malformed variable blocks instead, naming the variable, because failing open would hide the typo
+- **Passes silently** when it cannot tell: variable unset, no repo or `origin`, owner not in the map, no signed-in account. A set but malformed variable (not a JSON object of strings) blocks instead, naming the variable, because failing open would hide the typo
 
 [Set it up](../../README.md#41-account-gate).
 

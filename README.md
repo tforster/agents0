@@ -161,16 +161,16 @@ To change Agents0 itself, see [Develop Agents0](./docs/how-to/develop-agents0.md
 If you use more than one Claude account, the account gate refuses a prompt when the signed-in account is not the one you chose for that repo's owner. It is off until you tell it which account belongs to which owner, with a `ClaudeAccounts` environment variable holding a JSON object of owner to account email. The owner is the first path segment of the repo's `origin` remote (`tforster` in `git@github.com:tforster/agents0.git` and in `https://github.com/tforster/agents0`), matched case-insensitively. Export it from your shell profile, with your own owners and emails:
 
 ```bash
-export ClaudeAccounts='{"tforster":"troy.forster@gmail.com","Canadian-Pork-Council":"forster@cpc-ccp.com"}'
+export ClaudeAccounts='{"your-github-name":"you@personal.example","your-employer-org":"you@work.example"}'
 ```
 
 Restart Claude Code from a shell that has loaded the profile, or the variable is not there. With the wrong account signed in, your prompt is refused and Claude Code shows:
 
 ```text
-The owner "tforster" uses troy.forster@gmail.com, but Claude is signed in as forster@cpc-ccp.com. Run /logout, then /login as troy.forster@gmail.com.
+The owner "your-github-name" uses you@personal.example, but Claude is signed in as you@work.example. Run /logout, then /login as you@personal.example.
 ```
 
-A session cannot change its own account, so `/logout` and `/login` are the fix. The gate passes silently when it cannot tell: the variable is unset, the directory is not a git repo or has no `origin`, the owner is not in the map, or no account is signed in. A variable that is not valid JSON blocks every prompt with an error naming it, so a typo cannot switch the gate off unnoticed. The map lives in your environment because this repository is public.
+A session cannot change its own account, so `/logout` and `/login` are the fix. The gate passes silently when it cannot tell: the variable is unset, the directory is not a git repo or has no `origin`, the owner is not in the map, or no account is signed in. A variable that is not a JSON object of owner to email blocks every prompt with an error naming it, so a typo cannot switch the gate off unnoticed. The map lives in your environment because this repository is public.
 
 ## 5. Documentation
 
@@ -184,4 +184,4 @@ This is a personal, single-user tool and isn't set up to take outside contributi
 
 MIT License -- see [LICENSE](./LICENSE) for details.
 
-**Author:** Troy Forster ([@tforster](https://github.com/tforster)) -- <troy.forster@gmail.com>
+**Author:** Troy Forster ([@tforster](https://github.com/tforster)) -- <you@personal.example>

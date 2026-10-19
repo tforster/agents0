@@ -30,14 +30,21 @@ async function main() {
   const rawMap = process.env.ClaudeAccounts;
   if (!rawMap) return;
 
-  let accounts;
+  let parsed;
   try {
-    accounts = lowerCaseKeys(JSON.parse(rawMap));
+    parsed = JSON.parse(rawMap);
   } catch (error) {
     return block(
       `ClaudeAccounts is not valid JSON (${error instanceof Error ? error.message : error}). Fix the export in your shell profile, then restart Claude.`
     );
   }
+  // Validate at the boundary, then trust: a wrong shape would otherwise pass silently or crash below.
+  if (!isAccountMap(parsed)) {
+    return block(
+      "ClaudeAccounts must be a JSON object of owner to account email. Fix the export in your shell profile, then restart Claude."
+    );
+  }
+  const accounts = lowerCaseKeys(parsed);
 
   const { cwd } = JSON.parse(await readStdin());
   const owner = await originOwner(cwd);
@@ -56,6 +63,21 @@ async function main() {
  */
 function block(reason) {
   process.stdout.write(JSON.stringify({ decision: "block", reason }));
+}
+
+/**
+ * Reports whether a parsed value is a plain object whose values are all strings.
+ *
+ * @param {unknown} value - The parsed ClaudeAccounts.
+ * @returns {value is Record<string, string>} Whether it has the account-map shape.
+ */
+function isAccountMap(value) {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).every((email) => typeof email === "string")
+  );
 }
 
 /**
