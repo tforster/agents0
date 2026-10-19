@@ -514,7 +514,11 @@ describe("blueprints (AGEN-52)", () => {
           path: "/issue/CA-12",
           json: {
             key: "CA-12",
-            fields: { summary: "Small", issuetype: { name: "Story" }, description: adf("Full blueprint: docs/blueprints/CA-12-small.md") },
+            fields: {
+              summary: "Small",
+              issuetype: { name: "Story" },
+              description: adf("Full blueprint: docs/blueprints/CA-12-small.md"),
+            },
           },
         },
       ],
