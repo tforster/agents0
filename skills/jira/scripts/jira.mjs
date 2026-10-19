@@ -270,9 +270,10 @@ async function getIssue(key) {
   }
 
   console.log(`  URL:      ${JIRA_BASE_URL}/browse/${issue.key}`);
+  printBlueprint(f.description, `${f.issuetype?.name ?? "Issue"} ${issue.key}`);
 
   // A subtask's parent is a story, not an epic: name it from the fields already here and skip the
-  // second request, which exists only to fetch an epic's Implementation Decisions.
+  // second request, which exists only to fetch the epic's description and any blueprint it links.
   if (f.parent && f.issuetype?.subtask) {
     console.log(`\nParent: ${f.parent.key}: ${f.parent.fields?.summary ?? ""}`);
   } else if (f.parent) {
@@ -305,10 +306,6 @@ function collectUrls(adf) {
 /**
  * Print the parent issue's description, and the repo blueprint file it links to if any.
  *
- * Epic blueprints live in the repo (docs/epics/<key>-<slug>.md), not in Jira: a description caps at
- * 32,767 characters. The description is then a summary plus a link, so the agent must read that file
- * for the Implementation Decisions; we report the path and leave the reading to the agent.
- *
  * @param {string} parentKey - Parent epic's key (subtasks, whose parent is a story, never reach here).
  */
 async function printParent(parentKey) {
@@ -317,17 +314,34 @@ async function printParent(parentKey) {
   const kind = pf.issuetype?.name ?? "Parent";
 
   console.log(`\n${kind}: ${parent.key}: ${pf.summary}`);
-  console.log(`  ${kind} description (Implementation Decisions, or a summary linking to the blueprint):`);
+  console.log(`  ${kind} description (the blueprint, or a summary linking to it):`);
   console.log(`    ${fromAdf(pf.description).replace(/\n/g, "\n    ")}`);
+  printBlueprint(pf.description, `${kind} ${parent.key}`);
+}
 
+/**
+ * Print the repo blueprint file a description links to, if any, labelled with the issue it belongs to
+ * so a story's blueprint and its parent's stay distinguishable when both are printed.
+ *
+ * Blueprints, an epic's or a story's, may live in the repo (docs/blueprints/<key>-<slug>.md) rather
+ * than in Jira: a description caps at 32,767 characters. The description is then a summary plus a
+ * link, so the agent must read that file for the decisions; we report the path and leave the reading
+ * to the agent.
+ *
+ * @param {object|null} description - ADF description of the issue or its parent.
+ * @param {string} issueLabel - The issue's type and key, e.g. "Story CA-10".
+ */
+function printBlueprint(description, issueLabel) {
   // URLs first, so the full link can be reported; then a bare repo path typed as plain text.
-  const blueprintPattern = /docs\/epics\/[^\s)#?`'"]+\.md/;
-  const blueprintUrl = collectUrls(pf.description).find((u) => blueprintPattern.test(u));
-  const blueprintPath = (blueprintUrl ?? fromAdf(pf.description)).match(blueprintPattern)?.[0];
+  // docs/epics/ is the folder's old name, transitional until consuming repos move to docs/blueprints/;
+  // drop the alternative once they have.
+  const blueprintPattern = /docs\/(?:blueprints|epics)\/[^\s)#?`'"]+\.md/;
+  const blueprintUrl = collectUrls(description).find((u) => blueprintPattern.test(u));
+  const blueprintPath = (blueprintUrl ?? fromAdf(description)).match(blueprintPattern)?.[0];
   if (blueprintPath) {
-    console.log(`  Blueprint: ${blueprintPath}`);
+    console.log(`  Blueprint: ${blueprintPath} (${issueLabel})`);
     const link = blueprintUrl ? ` Link: ${blueprintUrl}` : "";
-    console.log(`    Read this file from the repo: it holds the epic's Implementation Decisions.${link}`);
+    console.log(`    Read this file from the repo: it is the full blueprint, and the description only its summary.${link}`);
   }
 }
 

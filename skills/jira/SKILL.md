@@ -110,7 +110,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs link PROJ-10 PROJ-11           # PROJ-
 node ${CLAUDE_SKILL_DIR}/scripts/jira.mjs resolve                        # backend/project/site from docs/agents/issue-tracker.md
 ```
 
-`get` also prints the parent epic's description and, when it links to `docs/epics/<key>-<slug>.md`, a `Blueprint:` path to read from the repo. When the repo has `docs/agents/issue-tracker.md`, its project key and site apply (`--project` still wins). The `tracker` skill wraps these commands in a backend-neutral contract.
+`get` also prints the parent epic's description and, when the issue's or the parent's description links to `docs/blueprints/<key>-<slug>.md` (or the older `docs/epics/`), a labelled `Blueprint:` path for each, to read from the repo. When the repo has `docs/agents/issue-tracker.md`, its project key and site apply (`--project` still wins). The `tracker` skill wraps these commands in a backend-neutral contract.
 
 ## Custom fields
 

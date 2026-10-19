@@ -1,4 +1,4 @@
-// tracker.test.js — guards the tracker skill contract and its Jira recipe (AGEN-45)
+// tracker.test.js — guards the tracker skill contract and its Jira recipe (AGEN-45), and blueprint detection (AGEN-52)
 //
 // The Jira recipe is skills/jira/scripts/jira.mjs, run as a real child process with fetch replaced by
 // tests/helpers/mock-fetch.js. Nothing here reaches a network, so write operations are safe to exercise.
@@ -404,7 +404,7 @@ describe("tracker skill", () => {
 
     assert.strictEqual(requests.length, 1);
     assert.match(stdout, /Parent: CA-10: The story/);
-    assert.doesNotMatch(stdout, /Implementation Decisions/);
+    assert.doesNotMatch(stdout, /description \(the blueprint/);
   });
 
   it("AC5: update with --status and --label transitions without failing on the next-only label", () => {
@@ -431,5 +431,123 @@ describe("tracker skill", () => {
     assert.strictEqual(status, 1);
     assert.match(stderr, /Missing required env vars/);
     assert.strictEqual(requests.length, 0);
+  });
+});
+
+/**
+ * Runs `get CA-10` for a story whose parent is CA-1, each with the given description.
+ *
+ * @param {object | undefined} storyDescription - The story's ADF description.
+ * @param {object | undefined} parentDescription - The parent epic's ADF description.
+ * @returns {ReturnType<typeof runJira>}
+ */
+function getStory(storyDescription, parentDescription) {
+  return runJira(["get", "CA-10"], {
+    routes: [
+      {
+        method: "GET",
+        path: "/issue/CA-10",
+        json: {
+          key: "CA-10",
+          fields: { summary: "S", issuetype: { name: "Story" }, parent: { key: "CA-1" }, description: storyDescription },
+        },
+      },
+      {
+        method: "GET",
+        path: "/issue/CA-1?",
+        json: { key: "CA-1", fields: { summary: "E", issuetype: { name: "Epic" }, description: parentDescription } },
+      },
+    ],
+  });
+}
+
+/**
+ * The four ways a description can carry a blueprint: link mark, smart card, typed URL and bare path.
+ *
+ * @param {string} repoPath - Blueprint path relative to the repo root.
+ * @returns {{ form: string, description: object, url?: string }[]}
+ */
+function blueprintForms(repoPath) {
+  const url = `https://github.com/Canadian-Pork-Council/cpc.platform/blob/main/${repoPath}`;
+  const link = { type: "text", text: "Blueprint", marks: [{ type: "link", attrs: { href: url } }] };
+  return [
+    { form: "link", url, description: { type: "doc", version: 1, content: [{ type: "paragraph", content: [link] }] } },
+    { form: "smart card", url, description: { type: "doc", version: 1, content: [{ type: "inlineCard", attrs: { url } }] } },
+    { form: "typed URL", url, description: adf(`Summary. See ${url}`) },
+    { form: "bare path", description: adf(`Summary. Full blueprint: ${repoPath}`) },
+  ];
+}
+
+describe("blueprints (AGEN-52)", () => {
+  it("AC1, AC2: get detects a parent's blueprint in docs/blueprints/ and still in docs/epics/, in all four forms", () => {
+    for (const repoPath of ["docs/blueprints/CA-1-feature.md", "docs/epics/CA-1-feature.md"]) {
+      for (const { form, description, url } of blueprintForms(repoPath)) {
+        const { stdout, status } = getStory(undefined, description);
+
+        assert.strictEqual(status, 0);
+        assert.ok(stdout.includes(`Blueprint: ${repoPath}`), `${repoPath} as a ${form}`);
+        if (url) {
+          assert.ok(stdout.includes(`Link: ${url}`), `${repoPath} as a ${form} reports the link`);
+        }
+      }
+    }
+  });
+
+  it("AC3: get prints a story's own blueprint when its parent has none, in all four forms", () => {
+    for (const { form, description, url } of blueprintForms("docs/blueprints/CA-10-story.md")) {
+      const { stdout, status } = getStory(description, adf("Epic summary, no blueprint."));
+
+      assert.strictEqual(status, 0);
+      assert.ok(stdout.includes("Blueprint: docs/blueprints/CA-10-story.md"), `story blueprint as a ${form}`);
+      if (url) {
+        assert.ok(stdout.includes(`Link: ${url}`), `story blueprint as a ${form} reports the link`);
+      }
+      assert.strictEqual(stdout.match(/Blueprint:/g)?.length, 1, "the parent prints no Blueprint line");
+    }
+  });
+
+  it("AC3: get prints the blueprint of a story too small for an epic, which has no parent at all", () => {
+    const { stdout, status, requests } = runJira(["get", "CA-12"], {
+      routes: [
+        {
+          method: "GET",
+          path: "/issue/CA-12",
+          json: {
+            key: "CA-12",
+            fields: {
+              summary: "Small",
+              issuetype: { name: "Story" },
+              description: adf("Full blueprint: docs/blueprints/CA-12-small.md"),
+            },
+          },
+        },
+      ],
+    });
+
+    assert.strictEqual(status, 0);
+    assert.strictEqual(requests.length, 1);
+    assert.match(stdout, /Blueprint: docs\/blueprints\/CA-12-small\.md \(Story CA-12\)/);
+  });
+
+  it("AC4: get prints both blueprints, each labelled with its issue, when the story and its parent both link one", () => {
+    const { stdout, status } = getStory(
+      adf("Story summary. Full blueprint: docs/blueprints/CA-10-story.md"),
+      adf("Epic summary. Full blueprint: docs/blueprints/CA-1-feature.md")
+    );
+
+    assert.strictEqual(status, 0);
+    assert.match(stdout, /Blueprint: docs\/blueprints\/CA-10-story\.md \(Story CA-10\)/);
+    assert.match(stdout, /Blueprint: docs\/blueprints\/CA-1-feature\.md \(Epic CA-1\)/);
+  });
+
+  it("AC5: get prints no Blueprint line when neither the story nor its parent links one", () => {
+    const { stdout, status } = getStory(
+      adf("Story summary. See docs/agents/issue-tracker.md and https://example.com/docs/guide.md"),
+      adf("Decision: use fetch. Rejected: axios.")
+    );
+
+    assert.strictEqual(status, 0);
+    assert.match(stdout, /Epic: CA-1: E/);
+    assert.doesNotMatch(stdout, /Blueprint:/);
   });
 });
