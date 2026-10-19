@@ -9,6 +9,7 @@ How Agents0, the toolkit that delivers [Dev0](https://github.com/tforster/dev0),
 - [3. Repository Layout](#3-repository-layout)
 - [4. Marketplace and Plugin](#4-marketplace-and-plugin)
 - [5. Rules Through Hooks](#5-rules-through-hooks)
+  - [5.2. PHP Format and Lint](#52-php-format-and-lint)
 - [6. Paths Inside the Plugin](#6-paths-inside-the-plugin)
 - [7. Third-Party Plugins and Pins](#7-third-party-plugins-and-pins)
 - [8. Testing Strategy](#8-testing-strategy)
@@ -42,8 +43,9 @@ agents0/
 ├── agents/<name>.md         # Agents0's own agents
 ├── rules/<topic>.md         # injected by hooks -- see §5
 ├── hooks/
-│   ├── hooks.json           # one SessionStart and one SubagentStart entry per rule
-│   └── inject-rule.js
+│   ├── hooks.json           # one SessionStart and one SubagentStart entry per rule, plus the other hooks
+│   ├── inject-rule.js
+│   └── php-format-lint.js
 ├── adr/                     # cross-project ADRs
 ├── docs/
 └── tests/
@@ -67,6 +69,15 @@ Plugins cannot carry rules and have no install hook. So `hooks/hooks.json` gives
 - **SubagentStart**, matched on `*`, for subagents started with the Agent tool, which never see SessionStart context
 
 One hook per rule, not one for all, because Claude Code caps each hook's output at 10,000 characters and replaces anything longer with a file path and a 2,000-character preview. All six rules together are about 17,000 characters. A test fails when any rule reaches the cap or lacks an entry under either event.
+
+### 5.2. PHP Format and Lint
+
+Not a rule either: a `PostToolUse` hook on `Edit|Write`, `hooks/php-format-lint.js`, for a `*.php` file outside `vendor/` (D29, D60). Local PHP is newer than production, so syntax that runs locally can break there; the hook says so in the same turn.
+
+- **Formatter**: the host `php-cs-fixer` runs on the changed file with the repo's `.php-cs-fixer.php`, else `.php-cs-fixer.dist.php`. No config, or no binary, skips it
+- **Production version**: `composer.json` `config.platform.php`, reduced to major.minor, read by `readProductionPhp`. This is the one place a repo declares it, so a PHP repo sets it for Composer's own sake too. No `composer.json`, or no value, skips the lint silently
+- **Lint**: `php -l` runs in `docker run --rm php:<major.minor>-cli` with the repo mounted read-only. The first run for a version pulls the image, hence the 120-second hook timeout; nothing is pre-pulled
+- **Feedback**: a formatter failure or a syntax error is a `decision: "block"` result, which returns the output to Claude in the same turn. When Docker cannot run (binary missing, daemon down, pull failed) the lint is skipped and `php -l skipped: docker unavailable` is added as context without blocking
 
 ## 6. Paths Inside the Plugin
 

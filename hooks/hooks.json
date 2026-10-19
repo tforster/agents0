@@ -73,6 +73,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/php-format-lint.js"],
+            "timeout": 120
+          }
+        ]
+      }
     ]
   }
 }
