@@ -220,6 +220,15 @@ describe("Agents0 marketplace and plugin", () => {
     }
   });
 
+  it("AGEN-51: no skill calls a bundled script by a relative path, which only works from the skill's own folder", async () => {
+    const markdown = (await listFiles("skills")).filter((file) => file.endsWith(".md"));
+    for (const file of markdown) {
+      const content = await readFile(path.join(repoRoot, file), "utf8");
+      const relativeCall = content.match(/\bnode\s+(?:\.\/)?scripts\/\S+/);
+      assert.ok(!relativeCall, `${file} runs "${relativeCall?.[0]}"; use \${CLAUDE_SKILL_DIR}/scripts/...`);
+    }
+  });
+
   it("DEV0-67 AC5: the CLI and installer are gone", async () => {
     for (const old of ["bin", "lib", "agents0.json"]) {
       assert.ok(!(await exists(old)), `${old} still exists`);
