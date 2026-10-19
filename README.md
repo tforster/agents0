@@ -11,6 +11,7 @@ _A Claude Code plugin that holds every agent you run to the same rules, and hand
   - [3.2. Loaded on demand](#32-loaded-on-demand)
   - [3.3. Enforcement](#33-enforcement)
 - [4. Quick Start](#4-quick-start)
+  - [4.1. Account gate](#41-account-gate)
 - [5. Documentation](#5-documentation)
 - [6. Contributing](#6-contributing)
 - [7. License](#7-license)
@@ -109,12 +110,12 @@ flowchart TD
 
 ### 3.3. Enforcement
 
-What can an agent not talk its way past? Hooks cost no context and fire on the tool call, whichever agent made it. None of these exist yet; today Agents0's only hooks are the rule injections above.
+What can an agent not talk its way past? Hooks cost no context and fire on the tool call, whichever agent made it. Only the account gate exists so far, besides the rule injections above; the rest are planned.
 
 ```mermaid
 flowchart LR
   sessionStart(["SessionStart"]) --> retention["Delete docs/scratch/ files<br/>over 28 days old"]:::planned
-  prompt(["UserPromptSubmit"]) --> account["Account gate: Claude account must<br/>match the repo owner -- BLOCK"]:::planned
+  prompt(["UserPromptSubmit"]) --> account["Account gate: Claude account must<br/>match the repo owner -- BLOCK"]:::exists
   bash(["Bash call"]) --> install{"npm install<br/>with a package?"}
   install -- yes --> depGate["Dependency gate -- BLOCK"]:::planned
   bash --> git{"force-push, merge,<br/>switch to main?"}
@@ -125,6 +126,7 @@ flowchart LR
   fileType -- "root CLAUDE.md, GLOSSARY*" --> budget["Warn when always-loaded<br/>context grows past budget"]:::planned
   stop(["Stop"]) --> completion["Completion gate: lint,<br/>typecheck, test -- BLOCK"]:::planned
 
+  classDef exists fill:#dcfce7,stroke:#16a34a,color:#14532d
   classDef planned fill:#f1f5f9,stroke:#64748b,color:#334155,stroke-dasharray:5 3
 ```
 
@@ -153,6 +155,22 @@ Or declare both in `~/.claude/settings.json`. The `extraKnownMarketplaces` key m
 Skills, agents and rules arrive with the next session. Cloudflare's skills are not in this marketplace; add them to a project that needs them with `claude plugin marketplace add cloudflare/skills` and `claude plugin install cloudflare@cloudflare --scope project`.
 
 To change Agents0 itself, see [Develop Agents0](./docs/how-to/develop-agents0.md).
+
+### 4.1. Account gate
+
+If you use more than one Claude account, the account gate refuses a prompt when the signed-in account is not the one you chose for that repo's owner. It is off until you tell it which account belongs to which owner, with a `ClaudeAccounts` environment variable holding a JSON object of owner to account email. The owner is the first path segment of the repo's `origin` remote (`tforster` in `git@github.com:tforster/agents0.git` and in `https://github.com/tforster/agents0`), matched case-insensitively. Export it from your shell profile, with your own owners and emails:
+
+```bash
+export ClaudeAccounts='{"tforster":"troy.forster@gmail.com","Canadian-Pork-Council":"forster@cpc-ccp.com"}'
+```
+
+Restart Claude Code from a shell that has loaded the profile, or the variable is not there. With the wrong account signed in, your prompt is refused and Claude Code shows:
+
+```text
+The owner "tforster" uses troy.forster@gmail.com, but Claude is signed in as forster@cpc-ccp.com. Run /logout, then /login as troy.forster@gmail.com.
+```
+
+A session cannot change its own account, so `/logout` and `/login` are the fix. The gate passes silently when it cannot tell: the variable is unset, the directory is not a git repo or has no `origin`, the owner is not in the map, or no account is signed in. A variable that is not valid JSON blocks every prompt with an error naming it, so a typo cannot switch the gate off unnoticed. The map lives in your environment because this repository is public.
 
 ## 5. Documentation
 
