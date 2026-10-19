@@ -101,6 +101,17 @@ node scripts/jira.mjs comment add PROJ-123 "Deployed to staging, ready for QA."
 node scripts/jira.mjs comment list PROJ-123
 ```
 
+## Next story, parent epic, blocking links
+
+```bash
+node scripts/jira.mjs next --label ready-for-agent   # first by Rank: open sprint, else backlog; Story, To Do
+node scripts/jira.mjs set-parent PROJ-123 PROJ-1     # make PROJ-1 the parent epic of PROJ-123
+node scripts/jira.mjs link PROJ-10 PROJ-11           # PROJ-10 blocks PROJ-11 ("Blocks" link)
+node scripts/jira.mjs resolve                        # backend/project/site from docs/agents/issue-tracker.md
+```
+
+`get` also prints the parent epic's description and, when it links to `docs/epics/<key>-<slug>.md`, a `Blueprint:` path to read from the repo. When the repo has `docs/agents/issue-tracker.md`, its project key and site apply (`--project` still wins). The `tracker` skill wraps these commands in a backend-neutral contract.
+
 ## Custom fields
 
 Stories have three rich-text fields — `description`, `story` (User Story), and `ac` (Acceptance Criteria).
