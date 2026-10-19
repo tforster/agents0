@@ -306,11 +306,6 @@ function collectUrls(adf) {
 /**
  * Print the parent issue's description, and the repo blueprint file it links to if any.
  *
- * Blueprints, an epic's or a story's, may live in the repo (docs/blueprints/<key>-<slug>.md) rather
- * than in Jira: a description caps at 32,767 characters. The description is then a summary plus a
- * link, so the agent must read that file for the decisions; we report the path and leave the reading
- * to the agent.
- *
  * @param {string} parentKey - Parent epic's key (subtasks, whose parent is a story, never reach here).
  */
 async function printParent(parentKey) {
@@ -328,10 +323,15 @@ async function printParent(parentKey) {
  * Print the repo blueprint file a description links to, if any, labelled with the issue it belongs to
  * so a story's blueprint and its parent's stay distinguishable when both are printed.
  *
+ * Blueprints, an epic's or a story's, may live in the repo (docs/blueprints/<key>-<slug>.md) rather
+ * than in Jira: a description caps at 32,767 characters. The description is then a summary plus a
+ * link, so the agent must read that file for the decisions; we report the path and leave the reading
+ * to the agent.
+ *
  * @param {object|null} description - ADF description of the issue or its parent.
- * @param {string} owner - Label for the issue, e.g. "Story CA-10".
+ * @param {string} issueLabel - The issue's type and key, e.g. "Story CA-10".
  */
-function printBlueprint(description, owner) {
+function printBlueprint(description, issueLabel) {
   // URLs first, so the full link can be reported; then a bare repo path typed as plain text.
   // docs/epics/ is the folder's old name, transitional until consuming repos move to docs/blueprints/;
   // drop the alternative once they have.
@@ -339,7 +339,7 @@ function printBlueprint(description, owner) {
   const blueprintUrl = collectUrls(description).find((u) => blueprintPattern.test(u));
   const blueprintPath = (blueprintUrl ?? fromAdf(description)).match(blueprintPattern)?.[0];
   if (blueprintPath) {
-    console.log(`  Blueprint: ${blueprintPath} (${owner})`);
+    console.log(`  Blueprint: ${blueprintPath} (${issueLabel})`);
     const link = blueprintUrl ? ` Link: ${blueprintUrl}` : "";
     console.log(`    Read this file from the repo: it is the full blueprint, and the description only its summary.${link}`);
   }

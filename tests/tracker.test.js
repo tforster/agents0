@@ -486,7 +486,9 @@ describe("blueprints (AGEN-52)", () => {
 
         assert.strictEqual(status, 0);
         assert.ok(stdout.includes(`Blueprint: ${repoPath}`), `${repoPath} as a ${form}`);
-        if (url) assert.ok(stdout.includes(`Link: ${url}`), `${repoPath} as a ${form} reports the link`);
+        if (url) {
+          assert.ok(stdout.includes(`Link: ${url}`), `${repoPath} as a ${form} reports the link`);
+        }
       }
     }
   });
@@ -497,7 +499,9 @@ describe("blueprints (AGEN-52)", () => {
 
       assert.strictEqual(status, 0);
       assert.ok(stdout.includes("Blueprint: docs/blueprints/CA-10-story.md"), `story blueprint as a ${form}`);
-      if (url) assert.ok(stdout.includes(`Link: ${url}`), `story blueprint as a ${form} reports the link`);
+      if (url) {
+        assert.ok(stdout.includes(`Link: ${url}`), `story blueprint as a ${form} reports the link`);
+      }
       assert.strictEqual(stdout.match(/Blueprint:/g)?.length, 1, "the parent prints no Blueprint line");
     }
   });
