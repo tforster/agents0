@@ -9,6 +9,7 @@ How Agents0, the toolkit that delivers [Dev0](https://github.com/tforster/dev0),
 - [3. Repository Layout](#3-repository-layout)
 - [4. Marketplace and Plugin](#4-marketplace-and-plugin)
 - [5. Rules Through Hooks](#5-rules-through-hooks)
+  - [5.1. Account Gate](#51-account-gate)
 - [6. Paths Inside the Plugin](#6-paths-inside-the-plugin)
 - [7. Third-Party Plugins and Pins](#7-third-party-plugins-and-pins)
 - [8. Testing Strategy](#8-testing-strategy)
@@ -67,6 +68,17 @@ Plugins cannot carry rules and have no install hook. So `hooks/hooks.json` gives
 - **SubagentStart**, matched on `*`, for subagents started with the Agent tool, which never see SessionStart context
 
 One hook per rule, not one for all, because Claude Code caps each hook's output at 10,000 characters and replaces anything longer with a file path and a 2,000-character preview. All six rules together are about 17,000 characters. A test fails when any rule reaches the cap or lacks an entry under either event.
+
+### 5.1. Account Gate
+
+Not a rule: a global `UserPromptSubmit` hook, `hooks/account-gate.js`, refuses a prompt when the signed-in Claude account is not the one mapped to the `origin` owner of the repo the prompt is submitted in (D75). It is a hook because a session cannot change its own account and a prose rule cannot see which account it runs under; blocking the prompt is the one moment that can say `/logout`, `/login`. `SessionStart` was rejected because it can only warn, and a warning scrolls past.
+
+- **The map** is the `ClaudeAccounts` environment variable, a JSON object of owner to account email, exported from the user's shell profile. It is not in the repo because the repo is public, and not in `plugin.json` `userConfig` because object values are unverified there. Owner and email match case-insensitively
+- **The owner** is the first path segment of `git remote get-url origin`, in the scp, `https://` and `ssh://` forms, with no host special cases: an Azure DevOps SSH remote yields `v3`, which is not in the map, and passes
+- **The account** is `oauthAccount.emailAddress` in `$CLAUDE_CONFIG_DIR/.claude.json`, else `~/.claude.json`
+- **Passes silently** when it cannot tell: variable unset, no repo or `origin`, owner not in the map, no signed-in account. A set but malformed variable (not a JSON object of strings) blocks instead, naming the variable, because failing open would hide the typo
+
+[Set it up](../../README.md#41-account-gate).
 
 ## 6. Paths Inside the Plugin
 
