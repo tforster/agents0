@@ -9,7 +9,9 @@ How Agents0, the toolkit that delivers [Dev0](https://github.com/tforster/dev0),
 - [3. Repository Layout](#3-repository-layout)
 - [4. Marketplace and Plugin](#4-marketplace-and-plugin)
 - [5. Rules Through Hooks](#5-rules-through-hooks)
-  - [5.2. PHP Format and Lint](#52-php-format-and-lint)
+  - [5.1. Account Gate](#51-account-gate)
+  - [5.2. Sandbox Placeholder Cleanup](#52-sandbox-placeholder-cleanup)
+  - [5.3. PHP Format and Lint](#53-php-format-and-lint)
 - [6. Paths Inside the Plugin](#6-paths-inside-the-plugin)
 - [7. Third-Party Plugins and Pins](#7-third-party-plugins-and-pins)
 - [8. Testing Strategy](#8-testing-strategy)
@@ -43,9 +45,12 @@ agents0/
 ├── agents/<name>.md         # Agents0's own agents
 ├── rules/<topic>.md         # injected by hooks -- see §5
 ├── hooks/
-│   ├── hooks.json           # one SessionStart and one SubagentStart entry per rule, plus the other hooks
+│   ├── hooks.json           # one SessionStart and one SubagentStart entry per rule, plus enforcement hooks
 │   ├── inject-rule.js
-│   └── php-format-lint.js
+│   ├── clean-config-lock.js # PostToolUse: stale sandbox .git/config.lock -- see §5.2
+│   ├── sandbox-placeholders.js
+│   ├── sweep-placeholders.js
+│   └── php-format-lint.js   # PostToolUse: PHP format and lint -- see §5.3
 ├── adr/                     # cross-project ADRs
 ├── docs/
 └── tests/
@@ -70,7 +75,26 @@ Plugins cannot carry rules and have no install hook. So `hooks/hooks.json` gives
 
 One hook per rule, not one for all, because Claude Code caps each hook's output at 10,000 characters and replaces anything longer with a file path and a 2,000-character preview. All six rules together are about 17,000 characters. A test fails when any rule reaches the cap or lacks an entry under either event.
 
-### 5.2. PHP Format and Lint
+### 5.1. Account Gate
+
+Not a rule: a global `UserPromptSubmit` hook, `hooks/account-gate.js`, refuses a prompt when the signed-in Claude account is not the one mapped to the `origin` owner of the repo the prompt is submitted in (D75). It is a hook because a session cannot change its own account and a prose rule cannot see which account it runs under; blocking the prompt is the one moment that can say `/logout`, `/login`. `SessionStart` was rejected because it can only warn, and a warning scrolls past.
+
+- **The map** is the `ClaudeAccounts` environment variable, a JSON object of owner to account email, exported from the user's shell profile. It is not in the repo because the repo is public, and not in `plugin.json` `userConfig` because object values are unverified there. Owner and email match case-insensitively
+- **The owner** is the first path segment of `git remote get-url origin`, in the scp, `https://` and `ssh://` forms, with no host special cases: an Azure DevOps SSH remote yields `v3`, which is not in the map, and passes
+- **The account** is `oauthAccount.emailAddress` in `$CLAUDE_CONFIG_DIR/.claude.json`, else `~/.claude.json`
+- **Passes silently** when it cannot tell: variable unset, no repo or `origin`, owner not in the map, no signed-in account. A set but malformed variable (not a JSON object of strings) blocks instead, naming the variable, because failing open would hide the typo
+
+[Set it up](../../README.md#41-account-gate).
+
+### 5.2. Sandbox Placeholder Cleanup
+
+On Linux and WSL2 the Bash sandbox bind-mounts over protected paths, and where a path does not exist it first creates an empty read-only placeholder on the host. [The sandboxing docs](https://code.claude.com/docs/en/sandboxing) say the sandbox removes it afterwards; on 2.1.29x it often does not: the cleanup is per process with no refcount, so concurrent sessions in one project root race ([#94008](https://github.com/anthropics/claude-code/issues/94008); also #78818, #101155, #102516). The placeholder that breaks work is `.git/config.lock`, which git reads as a held lock. Hooks run outside the sandbox, so one can delete it:
+
+- **`hooks/clean-config-lock.js`**, a `PostToolUse` hook on `Bash`, deletes `config.lock` in the git common directory only when it is an empty, read-only regular file and no `git` process is running (`pgrep -x git`; no `pgrep` counts as none). Git's own locks are writable and hold content, so they never match. It skips `run_in_background` calls, whose sandboxed command may still be live
+- The hook resolves the repository with `git rev-parse --git-common-dir` from the hook input's `cwd`, not `$CLAUDE_PROJECT_DIR`: that stays at the session's start directory, and in a linked worktree the lock lives in the main repository's `.git`. Outside a git repository it does nothing
+- **`hooks/sweep-placeholders.js`**, run by the `sandbox-placeholders` skill, also clears the empty read-only files in the repository root and `.claude/`. It is manual on purpose: a `Stop` hook would race another session's live sandboxed command, and `SessionEnd` gets 1.5 seconds and does not run when a session is killed, which is what leaves strays. It removes a path only when git shows it untracked, ignored or just added, so a tracked empty file is safe
+
+### 5.3. PHP Format and Lint
 
 Not a rule either: a `PostToolUse` hook on `Edit|Write`, `hooks/php-format-lint.js`, for a `*.php` file outside `vendor/` (D29, D60). Local PHP is newer than production, so syntax that runs locally can break there; the hook says so in the same turn.
 

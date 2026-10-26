@@ -140,6 +140,7 @@ describe("Agents0 marketplace and plugin", () => {
   it("DEV0-67 AC3: every rule is under 10,000 characters and has its own SessionStart and SubagentStart hook", async () => {
     const { hooks } = await readJson("hooks/hooks.json");
     const rules = (await readdir(path.join(repoRoot, "rules"))).map((name) => `rules/${name}`);
+    // Other events carry enforcement hooks, each tested with its own story; only rule injection is checked here.
 
     for (const [event, matcher] of Object.entries(hookEvents)) {
       const groups = hooks[event];
