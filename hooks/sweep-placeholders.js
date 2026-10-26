@@ -19,8 +19,12 @@ if (unknown) {
 
 try {
   const results = await sweepPlaceholders(process.cwd(), { dryRun: args.includes("--dry-run") });
-  if (results.length === 0) console.log("No sandbox placeholders found.");
-  for (const { path, action, reason } of results) console.log(`${action.padEnd(12)} ${path}${reason ? `  (${reason})` : ""}`);
+  if (results.length === 0) {
+    console.log("No sandbox placeholders found.");
+  }
+  for (const { path, action, reason } of results) {
+    console.log(`${action.padEnd(12)} ${path}${reason ? `  (${reason})` : ""}`);
+  }
 } catch (error) {
   console.error(`Error: ${/** @type {Error} */ (error).message}`);
   process.exit(1);

@@ -98,7 +98,9 @@ describe("Agents0 marketplace and plugin", () => {
     for (const { name, source } of thirdParty) {
       assert.match(source.sha ?? "", shaPattern, `${name} is not pinned to a 40-character sha`);
       // Pin to a release tag where upstream has one, so `claude plugin update` moves with releases.
-      if (source.ref !== undefined) assert.match(source.ref, /^v\d+\.\d+\.\d+$/, `${name} ref is not a release tag`);
+      if (source.ref !== undefined) {
+        assert.match(source.ref, /^v\d+\.\d+\.\d+$/, `${name} ref is not a release tag`);
+      }
     }
   });
 
@@ -261,7 +263,9 @@ describe("Agents0 marketplace and plugin", () => {
       () => true,
       () => false
     );
-    if (!hasClaude) return context.skip("claude is not on PATH");
+    if (!hasClaude) {
+      return context.skip("claude is not on PATH");
+    }
 
     // A throwaway config directory, so validation never reads or writes the real ~/.claude.
     const configDir = await mkdtemp(path.join(tmpdir(), "agents0-validate-"));

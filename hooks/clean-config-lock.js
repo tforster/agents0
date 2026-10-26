@@ -13,11 +13,15 @@ import { removeStaleConfigLock } from "./sandbox-placeholders.js";
  */
 async function readStdin() {
   const chunks = [];
-  for await (const chunk of process.stdin) chunks.push(chunk);
+  for await (const chunk of process.stdin) {
+    chunks.push(chunk);
+  }
   return Buffer.concat(chunks).toString("utf8");
 }
 
 const { cwd, tool_input: toolInput } = JSON.parse(await readStdin());
 
 // A background command's sandbox may still be running, and its placeholder is live until it ends.
-if (cwd && !toolInput?.run_in_background) await removeStaleConfigLock(cwd);
+if (cwd && !toolInput?.run_in_background) {
+  await removeStaleConfigLock(cwd);
+}

@@ -56,17 +56,27 @@ async function runHook({
   withStubs = ["docker", "php-cs-fixer"],
 } = {}) {
   const root = await makeTempDir();
-  if (isRepo) await run("git", ["init", "-q"], { cwd: root });
-  if (composer) await writeFile(path.join(root, "composer.json"), JSON.stringify(composer));
-  for (const name of fixerConfigs) await writeFile(path.join(root, name), "<?php return new PhpCsFixer\\Config();");
+  if (isRepo) {
+    await run("git", ["init", "-q"], { cwd: root });
+  }
+  if (composer) {
+    await writeFile(path.join(root, "composer.json"), JSON.stringify(composer));
+  }
+  for (const name of fixerConfigs) {
+    await writeFile(path.join(root, name), "<?php return new PhpCsFixer\\Config();");
+  }
   await mkdir(path.dirname(path.join(root, file)), { recursive: true });
   await writeFile(path.join(root, file), "<?php echo 1;");
 
   const binDirectory = await makeTempDir();
-  for (const name of withStubs) await writeStub(binDirectory, name);
+  for (const name of withStubs) {
+    await writeStub(binDirectory, name);
+  }
   // PATH holds only the stubs plus node and git, so a real docker or php-cs-fixer on the machine is never reached
   // and a "missing binary" case is genuinely missing.
-  for (const tool of [process.execPath, await which("git")]) await symlink(tool, path.join(binDirectory, path.basename(tool)));
+  for (const tool of [process.execPath, await which("git")]) {
+    await symlink(tool, path.join(binDirectory, path.basename(tool)));
+  }
   const stubbedPath = binDirectory;
   const stubLog = path.join(root, ".stub-log");
 
