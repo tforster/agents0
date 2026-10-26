@@ -110,7 +110,7 @@ flowchart TD
 
 ### 3.3. Enforcement
 
-What can an agent not talk its way past? Hooks cost no context and fire on the tool call, whichever agent made it. Only the account gate exists so far, besides the rule injections above; the rest are planned.
+What can an agent not talk its way past? Hooks cost no context and fire on the tool call, whichever agent made it. Besides the rule injections above, only the green ones exist so far; the rest are planned.
 
 ```mermaid
 flowchart LR
@@ -120,9 +120,10 @@ flowchart LR
   install -- yes --> depGate["Dependency gate -- BLOCK"]:::planned
   bash --> git{"force-push, merge,<br/>switch to main?"}
   git -- yes --> gitGate["Git gate -- BLOCK"]:::planned
+  bash --> configLock["Remove stale sandbox<br/>.git/config.lock"]:::exists
   edit(["Edit or Write"]) --> fileType{"File type?"}
   fileType -- "*.js" --> jsLint["oxfmt and oxlint"]:::planned
-  fileType -- "*.php" --> phpLint["php-cs-fixer and php -l"]:::planned
+  fileType -- "*.php" --> phpLint["php-cs-fixer and php -l"]:::exists
   fileType -- "root CLAUDE.md, GLOSSARY*" --> budget["Warn when always-loaded<br/>context grows past budget"]:::planned
   stop(["Stop"]) --> completion["Completion gate: lint,<br/>typecheck, test -- BLOCK"]:::planned
 

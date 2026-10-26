@@ -11,6 +11,7 @@ How Agents0, the toolkit that delivers [Dev0](https://github.com/tforster/dev0),
 - [5. Rules Through Hooks](#5-rules-through-hooks)
   - [5.1. Account Gate](#51-account-gate)
   - [5.2. Sandbox Placeholder Cleanup](#52-sandbox-placeholder-cleanup)
+  - [5.3. PHP Format and Lint](#53-php-format-and-lint)
 - [6. Paths Inside the Plugin](#6-paths-inside-the-plugin)
 - [7. Third-Party Plugins and Pins](#7-third-party-plugins-and-pins)
 - [8. Testing Strategy](#8-testing-strategy)
@@ -48,7 +49,8 @@ agents0/
 │   ├── inject-rule.js
 │   ├── clean-config-lock.js # PostToolUse: stale sandbox .git/config.lock -- see §5.2
 │   ├── sandbox-placeholders.js
-│   └── sweep-placeholders.js
+│   ├── sweep-placeholders.js
+│   └── php-format-lint.js   # PostToolUse: PHP format and lint -- see §5.3
 ├── adr/                     # cross-project ADRs
 ├── docs/
 └── tests/
@@ -91,6 +93,15 @@ On Linux and WSL2 the Bash sandbox bind-mounts over protected paths, and where a
 - **`hooks/clean-config-lock.js`**, a `PostToolUse` hook on `Bash`, deletes `config.lock` in the git common directory only when it is an empty, read-only regular file and no `git` process is running (`pgrep -x git`; no `pgrep` counts as none). Git's own locks are writable and hold content, so they never match. It skips `run_in_background` calls, whose sandboxed command may still be live
 - The hook resolves the repository with `git rev-parse --git-common-dir` from the hook input's `cwd`, not `$CLAUDE_PROJECT_DIR`: that stays at the session's start directory, and in a linked worktree the lock lives in the main repository's `.git`. Outside a git repository it does nothing
 - **`hooks/sweep-placeholders.js`**, run by the `sandbox-placeholders` skill, also clears the empty read-only files in the repository root and `.claude/`. It is manual on purpose: a `Stop` hook would race another session's live sandboxed command, and `SessionEnd` gets 1.5 seconds and does not run when a session is killed, which is what leaves strays. It removes a path only when git shows it untracked, ignored or just added, so a tracked empty file is safe
+
+### 5.3. PHP Format and Lint
+
+Not a rule either: a `PostToolUse` hook on `Edit|Write`, `hooks/php-format-lint.js`, for a `*.php` file outside `vendor/` (D29, D60). Local PHP is newer than production, so syntax that runs locally can break there; the hook says so in the same turn.
+
+- **Formatter**: the host `php-cs-fixer` runs on the changed file with the repo's `.php-cs-fixer.php`, else `.php-cs-fixer.dist.php`. No config, or no binary, skips it
+- **Production version**: `composer.json` `config.platform.php`, reduced to major.minor, read by `readProductionPhp`. This is the one place a repo declares it, so a PHP repo sets it for Composer's own sake too. No `composer.json`, or no value, skips the lint silently
+- **Lint**: `php -l` runs in `docker run --rm php:<major.minor>-cli` with the repo mounted read-only. The first run for a version pulls the image, hence the 120-second hook timeout; nothing is pre-pulled
+- **Feedback**: a formatter failure or a syntax error is a `decision: "block"` result, which returns the output to Claude in the same turn. When Docker cannot run (binary missing, daemon down, pull failed) the lint is skipped and `php -l skipped: docker unavailable` is added as context without blocking
 
 ## 6. Paths Inside the Plugin
 
