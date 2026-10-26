@@ -1,5 +1,9 @@
 // format-lint.js -- PostToolUse hook that formats and lints the file Claude just wrote (AGEN-16)
 //
+// Both tools see every file and decide for themselves what they support: an unsupported type, or a path
+// the project's config ignores, comes back as a sentinel message that is a silent no-op. Asking the tools,
+// not an extension list, keeps new languages arriving with an upgrade rather than a hook change.
+//
 // Usage, from hooks/hooks.json: node ${CLAUDE_PLUGIN_ROOT}/hooks/format-lint.js
 
 // System dependencies
@@ -17,6 +21,19 @@ import { promisify } from "node:util";
 const run = promisify(execFile);
 
 /**
+ * Reports whether a path exists.
+ *
+ * @param {string} target - Absolute path.
+ * @returns {Promise<boolean>} Whether it exists.
+ */
+async function exists(target) {
+  return await access(target).then(
+    () => true,
+    () => false
+  );
+}
+
+/**
  * Finds the nearest project above a file that has a tool installed in node_modules/.bin. Never npx: that
  * would download a tool the project has not approved (D3).
  *
@@ -26,12 +43,12 @@ const run = promisify(execFile);
  */
 async function findProject(filePath, tool) {
   for (let directory = path.dirname(filePath); ; directory = path.dirname(directory)) {
-    const isInstalled = await access(path.join(directory, "node_modules", ".bin", tool)).then(
-      () => true,
-      () => false
-    );
-    if (isInstalled) return directory;
-    if (directory === path.dirname(directory)) return;
+    if (await exists(path.join(directory, "node_modules", ".bin", tool))) {
+      return directory;
+    }
+    if (directory === path.dirname(directory)) {
+      return;
+    }
   }
 }
 
@@ -44,16 +61,18 @@ async function findProject(filePath, tool) {
  */
 async function format(filePath) {
   const project = await findProject(filePath, "oxfmt");
-  if (!project) return { reformatted: false };
+  if (!project) {
+    return { reformatted: false };
+  }
   const before = await readFile(filePath, "utf8");
   try {
     await run(path.join(project, "node_modules", ".bin", "oxfmt"), ["--write", filePath], { cwd: project });
   } catch (error) {
     const { stdout, stderr } = /** @type {ExecError} */ (error);
     const report = `${stdout}${stderr}`.trim();
-    // oxfmt fails with this when the file is not a type it formats, or its config ignores it. Asking oxfmt,
-    // not an extension list, keeps new languages arriving with an upgrade rather than a hook change.
-    if (report.includes("Expected at least one target file")) return { reformatted: false };
+    if (report.includes("Expected at least one target file")) {
+      return { reformatted: false };
+    }
     return { problem: report, reformatted: false };
   }
   return { reformatted: before !== (await readFile(filePath, "utf8")) };
@@ -67,15 +86,19 @@ async function format(filePath) {
  */
 async function lint(filePath) {
   const project = await findProject(filePath, "oxlint");
-  if (!project) return;
+  if (!project) {
+    return;
+  }
   try {
-    await run(path.join(project, "node_modules", ".bin", "oxlint"), [filePath], { cwd: project });
+    // --quiet drops warnings from the report: only errors block (architect, 2026-10-26), and a warning
+    // printed beside an error reads as something the agent must also fix.
+    await run(path.join(project, "node_modules", ".bin", "oxlint"), ["--quiet", filePath], { cwd: project });
   } catch (error) {
     const { stdout, stderr } = /** @type {ExecError} */ (error);
     const report = `${stdout}${stderr}`.trim();
-    // oxlint fails with this when the file is not a type it lints, or its config ignores it. Asking oxlint,
-    // not an extension list, keeps new languages arriving with an upgrade rather than a hook change.
-    if (report.includes("No files found to lint")) return;
+    if (report.includes("No files found to lint")) {
+      return;
+    }
     return report;
   }
 }
@@ -88,17 +111,31 @@ async function lint(filePath) {
  */
 async function handleEvent(event) {
   const filePath = event.tool_input.file_path;
+  // Something else (another hook, a sandbox cleanup) may have removed the file since the write; there is
+  // nothing left to format.
+  if (!(await exists(filePath))) {
+    return;
+  }
+
   const problems = [];
   const { problem, reformatted } = await format(filePath);
-  if (problem) problems.push(`oxfmt failed on ${filePath}:\n${problem}`);
+  if (problem) {
+    problems.push(`oxfmt failed on ${filePath}:\n${problem}`);
+  }
+  const lintReport = await lint(filePath);
+  if (lintReport) {
+    problems.push(`oxlint reports errors in ${filePath}:\n${lintReport}`);
+  }
+
   // oxfmt rewrites the file after the Edit, so Claude's copy is stale: its next Edit would fail, or it would
   // reason about old content.
-  const notes = reformatted ? [`oxfmt reformatted ${filePath}; re-read before editing it again`] : [];
-
-  const lintReport = await lint(filePath);
-  if (lintReport) problems.push(`oxlint reports errors in ${filePath}:\n${lintReport}`);
-  if (problems.length > 0) return { decision: "block", reason: [...problems, ...notes].join("\n\n") };
-  if (notes.length > 0) return { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: notes.join("\n") } };
+  const note = reformatted ? `oxfmt reformatted ${filePath}; re-read before editing it again` : undefined;
+  if (problems.length > 0) {
+    return { decision: "block", reason: [...problems, note].filter(Boolean).join("\n\n") };
+  }
+  if (note) {
+    return { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: note } };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -106,6 +143,10 @@ async function handleEvent(event) {
 // ---------------------------------------------------------------------------
 
 const chunks = [];
-for await (const chunk of process.stdin) chunks.push(chunk);
+for await (const chunk of process.stdin) {
+  chunks.push(chunk);
+}
 const output = await handleEvent(JSON.parse(Buffer.concat(chunks).toString("utf8")));
-if (output) process.stdout.write(JSON.stringify(output));
+if (output) {
+  process.stdout.write(JSON.stringify(output));
+}

@@ -19,10 +19,13 @@ const hookPath = path.join(repoRoot, "hooks", "format-lint.js");
 /**
  * Builds a project holding one file, optionally with oxfmt and oxlint installed, then runs the hook on it.
  *
- * @param {{ file: string, content: string, hasTools?: boolean, config?: Record<string, string> }} options
- * @returns {Promise<{ root: string, written: () => Promise<string>, output: any }>} Hook result.
+ * @param {{ file: string, content?: string, hasTools?: boolean, rootFiles?: Record<string, string> }} options - The
+ *   changed file, relative to the project, and its content (none leaves it missing); whether node_modules/.bin has
+ *   the tools; and other files, such as tool configs, to write at the project root.
+ * @returns {Promise<{ written: () => Promise<string>, output: any }>} The file's content after the hook, and the
+ *   hook's parsed JSON output (undefined when it printed nothing).
  */
-async function runHook({ file, content, hasTools = true, config = {} }) {
+async function runHook({ file, content, hasTools = true, rootFiles = {} }) {
   const root = await mkdtemp(path.join(tmpdir(), "agents0-format-lint-"));
   if (hasTools) {
     await mkdir(path.join(root, "node_modules", ".bin"), { recursive: true });
@@ -30,16 +33,20 @@ async function runHook({ file, content, hasTools = true, config = {} }) {
       await symlink(path.join(repoRoot, "node_modules", ".bin", tool), path.join(root, "node_modules", ".bin", tool));
     }
   }
-  for (const [name, text] of Object.entries(config)) await writeFile(path.join(root, name), text);
+  for (const [name, text] of Object.entries(rootFiles)) {
+    await writeFile(path.join(root, name), text);
+  }
   const filePath = path.join(root, file);
   await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, content);
+  if (content !== undefined) {
+    await writeFile(filePath, content);
+  }
 
   const event = { hook_event_name: "PostToolUse", tool_name: "Write", cwd: root, tool_input: { file_path: filePath } };
   const child = run("node", [hookPath], { cwd: root });
   child.child.stdin?.end(JSON.stringify(event));
   const { stdout } = await child;
-  return { root, output: stdout ? JSON.parse(stdout) : undefined, written: () => readFile(filePath, "utf8") };
+  return { output: stdout ? JSON.parse(stdout) : undefined, written: () => readFile(filePath, "utf8") };
 }
 
 describe("format-lint hook", () => {
@@ -62,7 +69,7 @@ describe("format-lint hook", () => {
     const { output } = await runHook({
       file: "src/broken.js",
       content: "if (x = 1) {\n  debugger;\n}\n",
-      config: { ".oxlintrc.json": JSON.stringify({ rules: { "no-debugger": "error" } }) },
+      rootFiles: { ".oxlintrc.json": JSON.stringify({ rules: { "no-debugger": "error" } }) },
     });
     assert.strictEqual(output?.decision, "block");
     assert.match(output.reason, /no-debugger/);
@@ -80,6 +87,29 @@ describe("format-lint hook", () => {
       assert.match(output?.hookSpecificOutput?.additionalContext, new RegExp(`oxfmt reformatted .*${file}; re-read`));
     });
   }
+
+  it("AGEN-16 scope: oxfmt's Markdown keeps the markdown rule's constraints: no hard wrap, empty > line in callouts", async () => {
+    const longLine = `Prose ${"that runs on ".repeat(20)}well past the print width.`;
+    const content = `# Note\n\n> [!NOTE]\n>\n> ${longLine}\n\n${longLine}\n`;
+    const { output, written } = await runHook({ file: "docs/note.md", content });
+    assert.strictEqual(await written(), content);
+    assert.strictEqual(output, undefined);
+  });
+
+  it("AGEN-16 scope: lint warnings stay out of the report when an error blocks", async () => {
+    const { output } = await runHook({
+      file: "src/mixed.js",
+      content: "const unused = 1;\ndebugger;\n",
+      rootFiles: { ".oxlintrc.json": JSON.stringify({ rules: { "no-debugger": "error", "no-unused-vars": "warn" } }) },
+    });
+    assert.match(output?.reason, /no-debugger/);
+    assert.doesNotMatch(output.reason, /no-unused-vars/);
+  });
+
+  it("AGEN-16 scope: a changed file that no longer exists is a quiet no-op", async () => {
+    const { output } = await runHook({ file: "src/gone.js" });
+    assert.strictEqual(output, undefined);
+  });
 
   it("AGEN-16 AC3: a .sql edit is a no-op, not an error", async () => {
     const content = "select   1 ;\n";
@@ -99,7 +129,7 @@ describe("format-lint hook", () => {
     const { output } = await runHook({
       file: "src/warned.js",
       content: "debugger;\n",
-      config: { ".oxlintrc.json": JSON.stringify({ rules: { "no-debugger": "warn" } }) },
+      rootFiles: { ".oxlintrc.json": JSON.stringify({ rules: { "no-debugger": "warn" } }) },
     });
     assert.strictEqual(output, undefined);
   });
@@ -115,7 +145,7 @@ describe("format-lint hook", () => {
     const { output, written } = await runHook({
       file: "vendor/lib.js",
       content,
-      config: {
+      rootFiles: {
         ".oxfmtrc.json": JSON.stringify({ ignorePatterns: ["vendor/**"] }),
         ".oxlintrc.json": JSON.stringify({ rules: { "no-debugger": "error" }, ignorePatterns: ["vendor/**"] }),
       },
