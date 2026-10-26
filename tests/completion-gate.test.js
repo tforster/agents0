@@ -8,7 +8,7 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -20,6 +20,17 @@ const pass = "node -e 0";
 const fail = "node -e \"console.log('1 test failed: adds numbers'); process.exit(1)\"";
 
 /**
+ * Writes a package.json holding the given scripts.
+ *
+ * @param {string} root - Project directory.
+ * @param {Record<string, string>} scripts - package.json scripts.
+ * @returns {Promise<void>}
+ */
+async function writeScripts(root, scripts) {
+  await writeFile(path.join(root, "package.json"), JSON.stringify({ name: "fixture", scripts }));
+}
+
+/**
  * Makes a git repo with a package.json holding the given scripts, left uncommitted so the tree is dirty.
  *
  * @param {Record<string, string> | undefined} scripts - package.json scripts; undefined for no package.json.
@@ -28,14 +39,17 @@ const fail = "node -e \"console.log('1 test failed: adds numbers'); process.exit
 async function makeRepo(scripts) {
   const root = await mkdtemp(path.join(tmpdir(), "agents0-completion-gate-"));
   await run("git", ["init", "-q"], { cwd: root });
-  if (scripts) await writeFile(path.join(root, "package.json"), JSON.stringify({ name: "fixture", scripts }));
+  if (scripts) {
+    await writeScripts(root, scripts);
+  }
   return root;
 }
 
 /**
  * Runs the hook for one Stop event.
  *
- * @param {{ root: string, sessionId: string, isStopHookActive?: boolean }} options
+ * @param {{ root: string, sessionId: string, isStopHookActive?: boolean }} options - The session's directory,
+ *   its id, and whether this stop follows a block.
  * @returns {Promise<any>} Parsed hook output, or undefined when it printed nothing.
  */
 async function stop({ root, sessionId, isStopHookActive = false }) {
@@ -72,7 +86,7 @@ describe("completion gate hook", () => {
     const root = await makeRepo({ lint: pass, typecheck: pass, test: fail });
     const output = await stop({ root, sessionId: randomUUID() });
     assert.strictEqual(output?.decision, "block");
-    assert.match(output.reason, /npm test/);
+    assert.match(output.reason, /npm run test failed/);
     assert.match(output.reason, /1 test failed: adds numbers/);
   });
 
@@ -109,7 +123,7 @@ describe("completion gate hook", () => {
 
   it("AGEN-17 scope: outside a git repo there is no tree to inspect, so the gate runs", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "agents0-completion-gate-"));
-    await writeFile(path.join(root, "package.json"), JSON.stringify({ scripts: { lint: pass, typecheck: pass, test: fail } }));
+    await writeScripts(root, { lint: pass, typecheck: pass, test: fail });
     assert.strictEqual((await stop({ root, sessionId: randomUUID() }))?.decision, "block");
   });
 
@@ -127,9 +141,43 @@ describe("completion gate hook", () => {
     const sessionId = randomUUID();
     await stop({ root, sessionId });
     await stop({ root, sessionId, isStopHookActive: true });
-    await writeFile(path.join(root, "package.json"), JSON.stringify({ scripts: { lint: pass, typecheck: pass, test: pass } }));
+    await writeScripts(root, { lint: pass, typecheck: pass, test: pass });
     assert.strictEqual(await stop({ root, sessionId, isStopHookActive: true }), undefined);
-    await writeFile(path.join(root, "package.json"), JSON.stringify({ scripts: { lint: pass, typecheck: pass, test: fail } }));
+    await writeScripts(root, { lint: pass, typecheck: pass, test: fail });
     assert.strictEqual((await stop({ root, sessionId, isStopHookActive: true }))?.decision, "block");
+  });
+
+  it("AGEN-17 scope: committing after two failures resets the count, like a pass", async () => {
+    const root = await makeRepo({ lint: pass, typecheck: pass, test: fail });
+    const sessionId = randomUUID();
+    await stop({ root, sessionId });
+    await stop({ root, sessionId, isStopHookActive: true });
+    await run("git", ["add", "-A"], { cwd: root });
+    await run("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "fixture"], { cwd: root });
+    assert.strictEqual(await stop({ root, sessionId, isStopHookActive: true }), undefined);
+    await writeFile(path.join(root, "dirty.txt"), "x");
+    assert.strictEqual((await stop({ root, sessionId, isStopHookActive: true }))?.decision, "block");
+  });
+
+  it("AGEN-17 scope: a session in a subdirectory is gated by the nearest package.json above it, as npm resolves", async () => {
+    const root = await makeRepo({ lint: pass, typecheck: pass, test: fail });
+    const subdirectory = path.join(root, "src");
+    await mkdir(subdirectory);
+    assert.strictEqual((await stop({ root: subdirectory, sessionId: randomUUID() }))?.decision, "block");
+  });
+
+  it("AGEN-17 scope: the first failing script stops the run, so a lint error does not wait on the tests", async () => {
+    const root = await makeRepo({ lint: fail, typecheck: pass, test: "node -e \"require('fs').writeFileSync('ran-tests', '')\"" });
+    const output = await stop({ root, sessionId: randomUUID() });
+    assert.match(output?.reason, /npm run lint failed/);
+    await assert.rejects(readFile(path.join(root, "ran-tests")));
+  });
+
+  it("AGEN-17 scope: a malformed package.json blocks, naming the file, rather than crashing the hook", async () => {
+    const root = await makeRepo(undefined);
+    await writeFile(path.join(root, "package.json"), "{ not json");
+    const output = await stop({ root, sessionId: randomUUID() });
+    assert.strictEqual(output?.decision, "block");
+    assert.match(output.reason, /package\.json/);
   });
 });
