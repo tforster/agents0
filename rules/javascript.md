@@ -175,5 +175,4 @@ Keep each section focused and named for what it does, not how it does it.
 
 ## 10. Miscellaneous
 
-- Run `npm run lint` after every edit
 - Do not mix CommonJS (`require`) and ESM (`import`) in the same file or package

@@ -125,7 +125,7 @@ flowchart LR
   fileType -- "any oxfmt or oxlint type" --> oxLint["oxfmt and oxlint"]:::exists
   fileType -- "*.php" --> phpLint["php-cs-fixer and php -l"]:::exists
   fileType -- "root CLAUDE.md, GLOSSARY*" --> budget["Warn when always-loaded<br/>context grows past budget"]:::planned
-  stop(["Stop"]) --> completion["Completion gate: lint,<br/>typecheck, test -- BLOCK"]:::planned
+  stop(["Stop"]) --> completion["Completion gate: lint,<br/>typecheck, test -- BLOCK"]:::exists
 
   classDef exists fill:#dcfce7,stroke:#16a34a,color:#14532d
   classDef planned fill:#f1f5f9,stroke:#64748b,color:#334155,stroke-dasharray:5 3
