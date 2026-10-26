@@ -10,6 +10,7 @@ How Agents0, the toolkit that delivers [Dev0](https://github.com/tforster/dev0),
 - [4. Marketplace and Plugin](#4-marketplace-and-plugin)
 - [5. Rules Through Hooks](#5-rules-through-hooks)
   - [5.1. Account Gate](#51-account-gate)
+  - [5.2. Sandbox Placeholder Cleanup](#52-sandbox-placeholder-cleanup)
 - [6. Paths Inside the Plugin](#6-paths-inside-the-plugin)
 - [7. Third-Party Plugins and Pins](#7-third-party-plugins-and-pins)
 - [8. Testing Strategy](#8-testing-strategy)
@@ -43,8 +44,11 @@ agents0/
 ├── agents/<name>.md         # Agents0's own agents
 ├── rules/<topic>.md         # injected by hooks -- see §5
 ├── hooks/
-│   ├── hooks.json           # one SessionStart and one SubagentStart entry per rule
-│   └── inject-rule.js
+│   ├── hooks.json           # one SessionStart and one SubagentStart entry per rule, plus enforcement hooks
+│   ├── inject-rule.js
+│   ├── clean-config-lock.js # PostToolUse: stale sandbox .git/config.lock -- see §5.2
+│   ├── sandbox-placeholders.js
+│   └── sweep-placeholders.js
 ├── adr/                     # cross-project ADRs
 ├── docs/
 └── tests/
@@ -79,6 +83,14 @@ Not a rule: a global `UserPromptSubmit` hook, `hooks/account-gate.js`, refuses a
 - **Passes silently** when it cannot tell: variable unset, no repo or `origin`, owner not in the map, no signed-in account. A set but malformed variable (not a JSON object of strings) blocks instead, naming the variable, because failing open would hide the typo
 
 [Set it up](../../README.md#41-account-gate).
+
+### 5.2. Sandbox Placeholder Cleanup
+
+On Linux and WSL2 the Bash sandbox bind-mounts over protected paths, and where a path does not exist it first creates an empty read-only placeholder on the host. [The sandboxing docs](https://code.claude.com/docs/en/sandboxing) say the sandbox removes it afterwards; on 2.1.29x it often does not: the cleanup is per process with no refcount, so concurrent sessions in one project root race ([#94008](https://github.com/anthropics/claude-code/issues/94008); also #78818, #101155, #102516). The placeholder that breaks work is `.git/config.lock`, which git reads as a held lock. Hooks run outside the sandbox, so one can delete it:
+
+- **`hooks/clean-config-lock.js`**, a `PostToolUse` hook on `Bash`, deletes `config.lock` in the git common directory only when it is an empty, read-only regular file and no `git` process is running (`pgrep -x git`; no `pgrep` counts as none). Git's own locks are writable and hold content, so they never match. It skips `run_in_background` calls, whose sandboxed command may still be live
+- The hook resolves the repository with `git rev-parse --git-common-dir` from the hook input's `cwd`, not `$CLAUDE_PROJECT_DIR`: that stays at the session's start directory, and in a linked worktree the lock lives in the main repository's `.git`. Outside a git repository it does nothing
+- **`hooks/sweep-placeholders.js`**, run by the `sandbox-placeholders` skill, also clears the empty read-only files in the repository root and `.claude/`. It is manual on purpose: a `Stop` hook would race another session's live sandboxed command, and `SessionEnd` gets 1.5 seconds and does not run when a session is killed, which is what leaves strays. It removes a path only when git shows it untracked, ignored or just added, so a tracked empty file is safe
 
 ## 6. Paths Inside the Plugin
 
