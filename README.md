@@ -11,6 +11,7 @@ _A Claude Code plugin that holds every agent you run to the same rules, and hand
   - [3.2. Loaded on demand](#32-loaded-on-demand)
   - [3.3. Enforcement](#33-enforcement)
 - [4. Quick Start](#4-quick-start)
+  - [4.1. Account gate](#41-account-gate)
 - [5. Documentation](#5-documentation)
 - [6. Contributing](#6-contributing)
 - [7. License](#7-license)
@@ -25,20 +26,20 @@ It is a personal, single-user tool: "simple and good enough for one person" wins
 
 The diagrams below use these terms. Where Claude Code already defines one, the link goes to its documentation.
 
-| Term                                                | Meaning                                                                                                                                                                                                                         |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Architect**                                       | Whoever owns the design of a piece of work. Draws the boundaries, refuses dependencies and decides what is not built, in writing, before the code.                                                                              |
-| **Doer**                                            | Whoever builds against the architect's decisions, a person or an agent. Asks when the design leaves a question open, rather than guessing. Agents0 equips agents as doers.                                                      |
-| **Blueprint**                                       | The architect's written design: an epic carrying the architecture, split into stories of a day or less, each with acceptance criteria. See [Shaping Work for Agents](./docs/explanation/shaping-work-for-agents.md).            |
-| **Agent**                                           | Any Claude Code session at work: the main session, a [subagent](https://code.claude.com/docs/en/sub-agents), or a loop worker.                                                                                                  |
-| **Loop worker**                                     | A [headless](https://code.claude.com/docs/en/headless) `claude -p` session started for one story, which returns a pull request.                                                                                                 |
-| **Rule**                                            | A Markdown file in `rules/` of standing instructions every agent must hold. Claude Code has [rules](https://code.claude.com/docs/en/memory) of its own, but a plugin cannot ship them, so Agents0 injects each one with a hook. |
-| **[Skill](https://code.claude.com/docs/en/skills)** | Instructions Claude Code loads when a task matches the skill's description, or when you type `/name`. Agents0's carry the `agents0:` prefix.                                                                                    |
-| **[Hook](https://code.claude.com/docs/en/hooks)**   | A command Claude Code runs at a lifecycle event. Agents0 uses hooks to inject rules, and will use them to block actions: an agent cannot argue past a hook.                                                                     |
-| **ADR**                                             | Architecture Decision Record: one file recording a decision, its cost and the alternatives it rejected. Agents0 ships cross-project ADRs in `adr/`.                                                                             |
-| **Glossary**                                        | A `GLOSSARY.md` of the domain terms for one part of a system, so agents name things as the business does. `GLOSSARY-MAP.md` says which glossary covers which part.                                                              |
-| **Always loaded**                                   | In an agent's context before its first prompt. Every agent pays for it, every subagent included, so it is kept small.                                                                                                           |
-| **On demand**                                       | Pulled in only when the work calls for it: a file touched, a skill matched, a choice to make.                                                                                                                                   |
+| Term                                                | Meaning                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Architect**                                       | Whoever owns the design of a piece of work. Draws the boundaries, refuses dependencies and decides what is not built, in writing, before the code.                                                                                                                                          |
+| **Doer**                                            | Whoever builds against the architect's decisions, a person or an agent. Asks when the design leaves a question open, rather than guessing. Agents0 equips agents as doers.                                                                                                                  |
+| **Blueprint**                                       | The architect's written design: usually an epic carrying the architecture, split into stories of a day or less, each with acceptance criteria; work too small for an epic is a single story carrying its own. See [Shaping Work for Agents](./docs/explanation/shaping-work-for-agents.md). |
+| **Agent**                                           | Any Claude Code session at work: the main session, a [subagent](https://code.claude.com/docs/en/sub-agents), or a loop worker.                                                                                                                                                              |
+| **Loop worker**                                     | A [headless](https://code.claude.com/docs/en/headless) `claude -p` session started for one story, which returns a pull request.                                                                                                                                                             |
+| **Rule**                                            | A Markdown file in `rules/` of standing instructions every agent must hold. Claude Code has [rules](https://code.claude.com/docs/en/memory) of its own, but a plugin cannot ship them, so Agents0 injects each one with a hook.                                                             |
+| **[Skill](https://code.claude.com/docs/en/skills)** | Instructions Claude Code loads when a task matches the skill's description, or when you type `/name`. Agents0's carry the `agents0:` prefix.                                                                                                                                                |
+| **[Hook](https://code.claude.com/docs/en/hooks)**   | A command Claude Code runs at a lifecycle event. Agents0 uses hooks to inject rules, and will use them to block actions: an agent cannot argue past a hook.                                                                                                                                 |
+| **ADR**                                             | Architecture Decision Record: one file recording a decision, its cost and the alternatives it rejected. Agents0 ships cross-project ADRs in `adr/`.                                                                                                                                         |
+| **Glossary**                                        | A `GLOSSARY.md` of the domain terms for one part of a system, so agents name things as the business does. `GLOSSARY-MAP.md` says which glossary covers which part.                                                                                                                          |
+| **Always loaded**                                   | In an agent's context before its first prompt. Every agent pays for it, every subagent included, so it is kept small.                                                                                                                                                                       |
+| **On demand**                                       | Pulled in only when the work calls for it: a file touched, a skill matched, a choice to make.                                                                                                                                                                                               |
 
 [CLAUDE.md, auto memory](https://code.claude.com/docs/en/memory), [MCP](https://code.claude.com/docs/en/mcp) and [plugins](https://code.claude.com/docs/en/plugins) are as Claude Code defines them. In every diagram, green boxes exist today and grey dashed boxes are planned.
 
@@ -109,12 +110,12 @@ flowchart TD
 
 ### 3.3. Enforcement
 
-What can an agent not talk its way past? Hooks cost no context and fire on the tool call, whichever agent made it. None of these exist yet; today Agents0's only hooks are the rule injections above.
+What can an agent not talk its way past? Hooks cost no context and fire on the tool call, whichever agent made it. Only the account gate exists so far, besides the rule injections above; the rest are planned.
 
 ```mermaid
 flowchart LR
   sessionStart(["SessionStart"]) --> retention["Delete docs/scratch/ files<br/>over 28 days old"]:::planned
-  prompt(["UserPromptSubmit"]) --> account["Account gate: Claude account must<br/>match the repo owner -- BLOCK"]:::planned
+  prompt(["UserPromptSubmit"]) --> account["Account gate: Claude account must<br/>match the repo owner -- BLOCK"]:::exists
   bash(["Bash call"]) --> install{"npm install<br/>with a package?"}
   install -- yes --> depGate["Dependency gate -- BLOCK"]:::planned
   bash --> git{"force-push, merge,<br/>switch to main?"}
@@ -125,6 +126,7 @@ flowchart LR
   fileType -- "root CLAUDE.md, GLOSSARY*" --> budget["Warn when always-loaded<br/>context grows past budget"]:::planned
   stop(["Stop"]) --> completion["Completion gate: lint,<br/>typecheck, test -- BLOCK"]:::planned
 
+  classDef exists fill:#dcfce7,stroke:#16a34a,color:#14532d
   classDef planned fill:#f1f5f9,stroke:#64748b,color:#334155,stroke-dasharray:5 3
 ```
 
@@ -154,6 +156,22 @@ Skills, agents and rules arrive with the next session. Cloudflare's skills are n
 
 To change Agents0 itself, see [Develop Agents0](./docs/how-to/develop-agents0.md).
 
+### 4.1. Account gate
+
+If you use more than one Claude account, the account gate refuses a prompt when the signed-in account is not the one you chose for that repo's owner. It is off until you tell it which account belongs to which owner, with a `ClaudeAccounts` environment variable holding a JSON object of owner to account email. The owner is the first path segment of the repo's `origin` remote (`tforster` in `git@github.com:tforster/agents0.git` and in `https://github.com/tforster/agents0`), matched case-insensitively. Export it from your shell profile, with your own owners and emails:
+
+```bash
+export ClaudeAccounts='{"your-github-name":"you@personal.example","your-employer-org":"you@work.example"}'
+```
+
+Restart Claude Code from a shell that has loaded the profile, or the variable is not there. With the wrong account signed in, your prompt is refused and Claude Code shows:
+
+```text
+The owner "your-github-name" uses you@personal.example, but Claude is signed in as you@work.example. Run /logout, then /login as you@personal.example.
+```
+
+A session cannot change its own account, so `/logout` and `/login` are the fix. The gate passes silently when it cannot tell: the variable is unset, the directory is not a git repo or has no `origin`, the owner is not in the map, or no account is signed in. A variable that is not a JSON object of owner to email blocks every prompt with an error naming it, so a typo cannot switch the gate off unnoticed. The map lives in your environment because this repository is public.
+
 ## 5. Documentation
 
 Documentation follows the [Diátaxis framework](https://diataxis.fr): start at the [Documentation Index](./docs/README.md). Work is tracked in the Dev0 project in Paca, and `git log` is the change history.
@@ -166,4 +184,4 @@ This is a personal, single-user tool and isn't set up to take outside contributi
 
 MIT License -- see [LICENSE](./LICENSE) for details.
 
-**Author:** Troy Forster ([@tforster](https://github.com/tforster)) -- <troy.forster@gmail.com>
+**Author:** Troy Forster ([@tforster](https://github.com/tforster)) -- <you@personal.example>
