@@ -122,7 +122,7 @@ flowchart LR
   git -- yes --> gitGate["Git gate -- BLOCK"]:::planned
   bash --> configLock["Remove stale sandbox<br/>.git/config.lock"]:::exists
   edit(["Edit or Write"]) --> fileType{"File type?"}
-  fileType -- "*.js" --> jsLint["oxfmt and oxlint"]:::planned
+  fileType -- "any oxfmt or oxlint type" --> oxLint["oxfmt and oxlint"]:::exists
   fileType -- "*.php" --> phpLint["php-cs-fixer and php -l"]:::exists
   fileType -- "root CLAUDE.md, GLOSSARY*" --> budget["Warn when always-loaded<br/>context grows past budget"]:::planned
   stop(["Stop"]) --> completion["Completion gate: lint,<br/>typecheck, test -- BLOCK"]:::planned
