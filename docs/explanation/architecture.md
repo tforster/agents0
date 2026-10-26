@@ -12,6 +12,7 @@ How Agents0, the toolkit that delivers [Dev0](https://github.com/tforster/dev0),
   - [5.1. Account Gate](#51-account-gate)
   - [5.2. Sandbox Placeholder Cleanup](#52-sandbox-placeholder-cleanup)
   - [5.3. PHP Format and Lint](#53-php-format-and-lint)
+  - [5.4. Format and Lint](#54-format-and-lint)
 - [6. Paths Inside the Plugin](#6-paths-inside-the-plugin)
 - [7. Third-Party Plugins and Pins](#7-third-party-plugins-and-pins)
 - [8. Testing Strategy](#8-testing-strategy)
@@ -50,7 +51,8 @@ agents0/
 │   ├── clean-config-lock.js # PostToolUse: stale sandbox .git/config.lock -- see §5.2
 │   ├── sandbox-placeholders.js
 │   ├── sweep-placeholders.js
-│   └── php-format-lint.js   # PostToolUse: PHP format and lint -- see §5.3
+│   ├── php-format-lint.js   # PostToolUse: PHP format and lint -- see §5.3
+│   └── format-lint.js       # PostToolUse: oxfmt and oxlint -- see §5.4
 ├── adr/                     # cross-project ADRs
 ├── docs/
 └── tests/
@@ -102,6 +104,15 @@ Not a rule either: a `PostToolUse` hook on `Edit|Write`, `hooks/php-format-lint.
 - **Production version**: `composer.json` `config.platform.php`, reduced to major.minor, read by `readProductionPhp`. This is the one place a repo declares it, so a PHP repo sets it for Composer's own sake too. No `composer.json`, or no value, skips the lint silently
 - **Lint**: `php -l` runs in `docker run --rm php:<major.minor>-cli` with the repo mounted read-only. The first run for a version pulls the image, hence the 120-second hook timeout; nothing is pre-pulled
 - **Feedback**: a formatter failure or a syntax error is a `decision: "block"` result, which returns the output to Claude in the same turn. When Docker cannot run (binary missing, daemon down, pull failed) the lint is skipped and `php -l skipped: docker unavailable` is added as context without blocking
+
+### 5.4. Format and Lint
+
+A `PostToolUse` hook on `Edit|Write`, `hooks/format-lint.js`, runs `oxfmt` and then `oxlint` on the changed file only (D9, D10, D29). It replaces the instruction to run lint after every edit: a rule decays over a long session and a hook does not (D24).
+
+- **No extension list**: every file goes to both tools, and each decides what it supports. `oxfmt` answers "Expected at least one target file" and `oxlint` "No files found to lint" for a type they do not handle, or a path their config ignores; both are a silent no-op. A new `oxfmt` language arrives with an upgrade, not a hook change. As of `oxfmt` 0.73.0 that covers JS/TS, JSON, YAML, Markdown, CSS, HTML, Handlebars, Vue, TOML and GraphQL, but not SQL
+- **The project's own tools**: the binaries come from the nearest `node_modules/.bin` above the file, and run from that directory so its `.oxfmtrc.json` and `.oxlintrc.json` apply. A project without them is a silent no-op. Never `npx`, which would download a tool the project has not approved (D3)
+- **Feedback**: an `oxfmt` failure (usually a syntax error) or an `oxlint` error is a `decision: "block"` result, returned to Claude in the same turn. `oxlint` warnings are not. When `oxfmt` rewrites the file, Claude is told to re-read it, as in §5.3
+- **Markdown**: `oxfmt` does not wrap prose and keeps a callout's empty `>` line, so its output meets `rules/markdown.md`
 
 ## 6. Paths Inside the Plugin
 
