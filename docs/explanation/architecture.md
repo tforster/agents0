@@ -13,6 +13,7 @@ How Agents0, the toolkit that delivers [Dev0](https://github.com/tforster/dev0),
   - [5.2. Sandbox Placeholder Cleanup](#52-sandbox-placeholder-cleanup)
   - [5.3. PHP Format and Lint](#53-php-format-and-lint)
   - [5.4. Format and Lint](#54-format-and-lint)
+  - [5.5. Completion Gate](#55-completion-gate)
 - [6. Paths Inside the Plugin](#6-paths-inside-the-plugin)
 - [7. Third-Party Plugins and Pins](#7-third-party-plugins-and-pins)
 - [8. Testing Strategy](#8-testing-strategy)
@@ -52,7 +53,8 @@ agents0/
 │   ├── sandbox-placeholders.js
 │   ├── sweep-placeholders.js
 │   ├── format-lint-php.js   # PostToolUse: PHP format and lint -- see §5.3
-│   └── format-lint-oxc.js   # PostToolUse: oxfmt and oxlint -- see §5.4
+│   ├── format-lint-oxc.js   # PostToolUse: oxfmt and oxlint -- see §5.4
+│   └── completion-gate.js   # Stop: lint, typecheck and test -- see §5.5
 ├── adr/                     # cross-project ADRs
 ├── docs/
 └── tests/
@@ -113,6 +115,16 @@ A `PostToolUse` hook on `Edit|Write`, `hooks/format-lint-oxc.js`, runs `oxfmt` a
 - **The project's own tools**: the binaries come from the nearest `node_modules/.bin` above the file, and run from that directory so its `.oxfmtrc.json` and `.oxlintrc.json` apply. A project without them is a silent no-op. Never `npx`, which would download a tool the project has not approved (D3)
 - **Feedback**: an `oxfmt` failure (usually a syntax error) or an `oxlint` error is a `decision: "block"` result, returned to Claude in the same turn. `oxlint` warnings are not. When `oxfmt` rewrites the file, Claude is told to re-read it, as in §5.3
 - **Markdown**: `oxfmt` does not wrap prose and keeps a callout's empty `>` line, so its output meets `rules/markdown.md`
+
+### 5.5. Completion Gate
+
+A `Stop` hook, `hooks/completion-gate.js`, runs `npm run lint`, `npm run typecheck` and `npm test` in the session's directory, in that order, stopping at the first failure, and blocks the stop with its output (D29, D31). It replaces the rules that told the agent to run them: instruction decays over a long session and a hook does not (D24), so no rule, skill, agent or `CLAUDE.md` may say it any more, and a test holds that line.
+
+- **When it runs**: only when `git status --porcelain` shows changes, so a question-only turn, or work already committed, costs no test run. Outside a git repo it always runs
+- **Which repos**: one with no `package.json` is not an npm project, and passes silently. One with a `package.json` missing any of the three scripts is blocked, naming them: the JS template gives every Dev0 project all three (D68), so a missing one is the thing to fix
+- **Two retries**: Claude Code sets `stop_hook_active` when a stop follows a block. The gate counts those in a per-session file in the temp directory: the first stop of a turn starts at one, the third consecutive failure lets the stop through with a `systemMessage` that the gate is red and the tail of its output. A pass, or the next user prompt, resets the count. Looping forever on a failure the agent cannot fix would burn the session instead of handing it to a human
+- **Output**: the last 8,000 characters, where a test runner puts its failures and summary
+- **Timeout**: 600 seconds, for slow suites. A timed-out hook fails open
 
 ## 6. Paths Inside the Plugin
 

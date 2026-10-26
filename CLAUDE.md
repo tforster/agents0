@@ -21,7 +21,7 @@ claude plugin validate .              # marketplace and plugin manifests
 claude --plugin-dir .                 # load this working copy as the plugin for one session
 ```
 
-**After every change**, run `npm run lint` and `npm run typecheck` (and `npm test` if you touched behaviour) before considering the task done. Type checking is JSDoc-based (`checkJs: true`, no `.ts` files). Plugin content -- `skills/`, `agents/`, `rules/`, `adr/` -- is excluded from lint, format and typecheck; `hooks/` and `tests/` are not.
+The completion gate (`hooks/completion-gate.js`) runs `lint`, `typecheck` and `test` when a session stops with uncommitted changes. Type checking is JSDoc-based (`checkJs: true`, no `.ts` files). Plugin content -- `skills/`, `agents/`, `rules/`, `adr/` -- is excluded from lint, format and typecheck; `hooks/` and `tests/` are not.
 
 ## Architecture
 

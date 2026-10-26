@@ -33,6 +33,18 @@
         ]
       }
     ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/completion-gate.js"],
+            "timeout": 600
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
