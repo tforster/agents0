@@ -13,8 +13,9 @@ Dev0 is architecture-first, and that shapes how work is broken down, whether it 
 
 - **An epic holds the architecture.** It is a container for enough work to deliver one feature, and it carries the design: detailed enough to answer most questions before they are asked. It lives as a document beside the code, not crammed into a ticket field.
 - **A story is a day or less of work.** It points at the sections of the epic it implements and carries acceptance criteria written as behaviour: given, when, then.
-- **A doer needs nothing beyond the story and its epic.** Not the roadmap, not the dozen other epics, not the reasoning behind the business. If the story and epic do not answer a question, the design has a gap.
-- **Gaps are asked, not guessed.** The doer stops and asks; the architect answers; the answer goes back into the epic so the next person does not have to ask.
+- **Work too small for an epic is a story with its own blueprint.** This is the exception: most work, perhaps four pieces in five, still shapes into an epic. When a piece of work does not justify one, the story carries the design itself, in the same kind of document beside the code.
+- **A doer needs nothing beyond the story and its blueprint**, the epic's or the story's own. Not the roadmap, not the dozen other epics, not the reasoning behind the business. If the story and its blueprint do not answer a question, the design has a gap.
+- **Gaps are asked, not guessed.** The doer stops and asks; the architect answers; the answer goes back into the blueprint so the next person does not have to ask.
 
 Acceptance criteria and design are different things, and confusing them explains a lot of bad results. Acceptance criteria tell you whether you are done. They do not tell you what to build. Hand someone only acceptance criteria and they have to invent the design, and their invention is not yours. It will be plausible, and it will be the median.
 

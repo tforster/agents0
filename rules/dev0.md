@@ -44,6 +44,6 @@ Beyond the checks the hooks run, a story is done when:
 
 - every acceptance criterion has a test whose name cites it;
 - the diff stays within the modules the blueprint names, or the PR says why not;
-- the blueprint matches what was built, with any answers to your questions folded into the epic.
+- the blueprint matches what was built, with any answers to your questions folded into it: the epic's, or the story's own when the work was too small for an epic.
 
 Until the completion gate hook exists, run the project's `lint`, `typecheck` and `test` scripts and fix what they report before calling anything done.
