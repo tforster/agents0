@@ -1,6 +1,6 @@
-// php-format-lint.js -- PostToolUse hook that formats and lints a PHP file Claude just wrote (AGEN-24)
+// format-lint-php.js -- PostToolUse hook that formats and lints a PHP file Claude just wrote (AGEN-24)
 //
-// Usage, from hooks/hooks.json: node ${CLAUDE_PLUGIN_ROOT}/hooks/php-format-lint.js
+// Usage, from hooks/hooks.json: node ${CLAUDE_PLUGIN_ROOT}/hooks/format-lint-php.js
 
 // System dependencies
 import { execFile } from "node:child_process";

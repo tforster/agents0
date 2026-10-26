@@ -1,6 +1,6 @@
-// php-format-lint.test.js -- guards the PHP format and lint PostToolUse hook (AGEN-24)
+// format-lint-php.test.js -- guards the PHP format and lint PostToolUse hook (AGEN-24)
 //
-// Seam: hooks/php-format-lint.js, run as a real child process with the
+// Seam: hooks/format-lint-php.js, run as a real child process with the
 // Claude Code event on stdin. Docker and php-cs-fixer are stubs first on PATH, so the suite needs neither.
 
 // System dependencies
@@ -13,7 +13,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 const run = promisify(execFile);
-const hookPath = path.resolve(import.meta.dirname, "..", "hooks", "php-format-lint.js");
+const hookPath = path.resolve(import.meta.dirname, "..", "hooks", "format-lint-php.js");
 
 /**
  * Makes a throwaway directory.
@@ -189,12 +189,12 @@ describe("PHP format and lint hook", () => {
     const { hooks } = JSON.parse(await readFile(path.resolve(import.meta.dirname, "..", "hooks", "hooks.json"), "utf8"));
     assert.deepStrictEqual(
       hooks.PostToolUse.filter((/** @type {{ hooks: { args?: string[] }[] }} */ group) =>
-        group.hooks.some((hook) => hook.args?.[0]?.endsWith("php-format-lint.js"))
+        group.hooks.some((hook) => hook.args?.[0]?.endsWith("format-lint-php.js"))
       ),
       [
         {
           matcher: "Edit|Write",
-          hooks: [{ type: "command", command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/hooks/php-format-lint.js"], timeout: 120 }],
+          hooks: [{ type: "command", command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/hooks/format-lint-php.js"], timeout: 120 }],
         },
       ]
     );

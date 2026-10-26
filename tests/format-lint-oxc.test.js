@@ -1,6 +1,6 @@
-// format-lint.test.js -- guards the format and lint PostToolUse hook (AGEN-16)
+// format-lint-oxc.test.js -- guards the format and lint PostToolUse hook (AGEN-16)
 //
-// Seam: hooks/format-lint.js, run as a real child process with the Claude Code event on stdin, against a
+// Seam: hooks/format-lint-oxc.js, run as a real child process with the Claude Code event on stdin, against a
 // throwaway project whose node_modules/.bin links to this repo's real oxfmt and oxlint.
 
 // System dependencies
@@ -14,7 +14,7 @@ import { promisify } from "node:util";
 
 const run = promisify(execFile);
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const hookPath = path.join(repoRoot, "hooks", "format-lint.js");
+const hookPath = path.join(repoRoot, "hooks", "format-lint-oxc.js");
 
 /**
  * Builds a project holding one file, optionally with oxfmt and oxlint installed, then runs the hook on it.
@@ -26,7 +26,7 @@ const hookPath = path.join(repoRoot, "hooks", "format-lint.js");
  *   hook's parsed JSON output (undefined when it printed nothing).
  */
 async function runHook({ file, content, hasTools = true, rootFiles = {} }) {
-  const root = await mkdtemp(path.join(tmpdir(), "agents0-format-lint-"));
+  const root = await mkdtemp(path.join(tmpdir(), "agents0-format-lint-oxc-"));
   if (hasTools) {
     await mkdir(path.join(root, "node_modules", ".bin"), { recursive: true });
     for (const tool of ["oxfmt", "oxlint"]) {
@@ -49,17 +49,17 @@ async function runHook({ file, content, hasTools = true, rootFiles = {} }) {
   return { output: stdout ? JSON.parse(stdout) : undefined, written: () => readFile(filePath, "utf8") };
 }
 
-describe("format-lint hook", () => {
+describe("oxc format and lint hook", () => {
   it("AGEN-16 AC1: hooks.json runs the hook after Edit and Write, so feedback lands in the same turn", async () => {
     const { hooks } = JSON.parse(await readFile(path.join(repoRoot, "hooks", "hooks.json"), "utf8"));
     assert.deepStrictEqual(
       hooks.PostToolUse.filter((/** @type {{ hooks: { args?: string[] }[] }} */ group) =>
-        group.hooks.some((hook) => hook.args?.[0]?.endsWith("/format-lint.js"))
+        group.hooks.some((hook) => hook.args?.[0]?.endsWith("/format-lint-oxc.js"))
       ),
       [
         {
           matcher: "Edit|Write",
-          hooks: [{ type: "command", command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/hooks/format-lint.js"] }],
+          hooks: [{ type: "command", command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/hooks/format-lint-oxc.js"] }],
         },
       ]
     );

@@ -51,8 +51,8 @@ agents0/
 │   ├── clean-config-lock.js # PostToolUse: stale sandbox .git/config.lock -- see §5.2
 │   ├── sandbox-placeholders.js
 │   ├── sweep-placeholders.js
-│   ├── php-format-lint.js   # PostToolUse: PHP format and lint -- see §5.3
-│   └── format-lint.js       # PostToolUse: oxfmt and oxlint -- see §5.4
+│   ├── format-lint-php.js   # PostToolUse: PHP format and lint -- see §5.3
+│   └── format-lint-oxc.js   # PostToolUse: oxfmt and oxlint -- see §5.4
 ├── adr/                     # cross-project ADRs
 ├── docs/
 └── tests/
@@ -98,7 +98,7 @@ On Linux and WSL2 the Bash sandbox bind-mounts over protected paths, and where a
 
 ### 5.3. PHP Format and Lint
 
-Not a rule either: a `PostToolUse` hook on `Edit|Write`, `hooks/php-format-lint.js`, for a `*.php` file outside `vendor/` (D29, D60). Local PHP is newer than production, so syntax that runs locally can break there; the hook says so in the same turn.
+Not a rule either: a `PostToolUse` hook on `Edit|Write`, `hooks/format-lint-php.js`, for a `*.php` file outside `vendor/` (D29, D60). Local PHP is newer than production, so syntax that runs locally can break there; the hook says so in the same turn.
 
 - **Formatter**: the host `php-cs-fixer` runs on the changed file with the repo's `.php-cs-fixer.php`, else `.php-cs-fixer.dist.php`. No config, or no binary, skips it
 - **Production version**: `composer.json` `config.platform.php`, reduced to major.minor, read by `readProductionPhp`. This is the one place a repo declares it, so a PHP repo sets it for Composer's own sake too. No `composer.json`, or no value, skips the lint silently
@@ -107,7 +107,7 @@ Not a rule either: a `PostToolUse` hook on `Edit|Write`, `hooks/php-format-lint.
 
 ### 5.4. Format and Lint
 
-A `PostToolUse` hook on `Edit|Write`, `hooks/format-lint.js`, runs `oxfmt` and then `oxlint` on the changed file only (D9, D10, D29). It replaces the instruction to run lint after every edit: a rule decays over a long session and a hook does not (D24).
+A `PostToolUse` hook on `Edit|Write`, `hooks/format-lint-oxc.js`, runs `oxfmt` and then `oxlint` on the changed file only (D9, D10, D29). It replaces the instruction to run lint after every edit: a rule decays over a long session and a hook does not (D24).
 
 - **No extension list**: every file goes to both tools, and each decides what it supports. `oxfmt` answers "Expected at least one target file" and `oxlint` "No files found to lint" for a type they do not handle, or a path their config ignores; both are a silent no-op. A new `oxfmt` language arrives with an upgrade, not a hook change. As of `oxfmt` 0.73.0 that covers JS/TS, JSON, YAML, Markdown, CSS, HTML, Handlebars, Vue, TOML and GraphQL, but not SQL
 - **The project's own tools**: the binaries come from the nearest `node_modules/.bin` above the file, and run from that directory so its `.oxfmtrc.json` and `.oxlintrc.json` apply. A project without them is a silent no-op. Never `npx`, which would download a tool the project has not approved (D3)

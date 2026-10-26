@@ -1,10 +1,10 @@
-// format-lint.js -- PostToolUse hook that formats and lints the file Claude just wrote (AGEN-16)
+// format-lint-oxc.js -- PostToolUse hook that formats and lints the file Claude just wrote (AGEN-16)
 //
 // Both tools see every file and decide for themselves what they support: an unsupported type, or a path
 // the project's config ignores, comes back as a sentinel message that is a silent no-op. Asking the tools,
 // not an extension list, keeps new languages arriving with an upgrade rather than a hook change.
 //
-// Usage, from hooks/hooks.json: node ${CLAUDE_PLUGIN_ROOT}/hooks/format-lint.js
+// Usage, from hooks/hooks.json: node ${CLAUDE_PLUGIN_ROOT}/hooks/format-lint-oxc.js
 
 // System dependencies
 import { execFile } from "node:child_process";
