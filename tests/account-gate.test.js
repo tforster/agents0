@@ -29,7 +29,9 @@ const accounts = JSON.stringify({ tforster: personal, "Canadian-Pork-Council": w
 async function makeRepo(originUrl) {
   const repo = await mkdtemp(path.join(tmpdir(), "account-gate-repo-"));
   await run("git", ["init", "--quiet"], { cwd: repo });
-  if (originUrl) await run("git", ["remote", "add", "origin", originUrl], { cwd: repo });
+  if (originUrl) {
+    await run("git", ["remote", "add", "origin", originUrl], { cwd: repo });
+  }
   return repo;
 }
 
@@ -49,7 +51,9 @@ async function runHook({ cwd, email, accountMap, writeConfig = true }) {
     await writeFile(path.join(configDir, ".claude.json"), JSON.stringify(email ? { oauthAccount: { emailAddress: email } } : {}));
   }
   const { ClaudeAccounts: _inherited, ...env } = process.env;
-  if (accountMap !== undefined) env.ClaudeAccounts = accountMap;
+  if (accountMap !== undefined) {
+    env.ClaudeAccounts = accountMap;
+  }
   env.CLAUDE_CONFIG_DIR = configDir;
   const hook = run("node", [hookPath], { env });
   hook.child.stdin?.end(JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt: "hello", cwd }));

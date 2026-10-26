@@ -61,7 +61,9 @@ describe("toolkit documentation", () => {
       const lines = (await readFile(path.join(repoRoot, file), "utf8")).split("\n");
       lines.forEach((line, index) => {
         const marker = line.match(/^> \[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/)?.[0];
-        if (!marker) return;
+        if (!marker) {
+          return;
+        }
         assert.strictEqual(line, marker, `${file}:${index + 1} callout marker must be on its own line`);
         assert.strictEqual(lines[index + 1], ">", `${file}:${index + 1} callout marker is not followed by an empty > line`);
       });
@@ -117,7 +119,9 @@ describe("root README", () => {
       .map((entry) => path.relative(repoRoot, path.join(entry.parentPath, entry.name)))
       .filter((file) => !file.startsWith("node_modules") && !file.startsWith(".git"));
     for (const file of markdown) {
-      if (file === "README.md") continue;
+      if (file === "README.md") {
+        continue;
+      }
       const content = await readFile(path.join(repoRoot, file), "utf8");
       assert.ok(!content.includes("```mermaid"), `${file} carries a second copy of a diagram`);
     }

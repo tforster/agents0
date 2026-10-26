@@ -21,7 +21,9 @@ const [, , hookEventName, rulePath] = process.argv;
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
 
 // Claude Code exports CLAUDE_PLUGIN_ROOT to every plugin hook; without it, rule paths would be wrong.
-if (!pluginRoot) throw new Error("CLAUDE_PLUGIN_ROOT is not set; run this script as a Claude Code plugin hook.");
+if (!pluginRoot) {
+  throw new Error("CLAUDE_PLUGIN_ROOT is not set; run this script as a Claude Code plugin hook.");
+}
 
 // Rules name plugin files as ${CLAUDE_PLUGIN_ROOT}/..., the variable Claude Code substitutes in
 // skills, agents and hook arguments. It does not substitute hook output, so this script does.

@@ -28,7 +28,9 @@ await main();
  */
 async function main() {
   const rawMap = process.env.ClaudeAccounts;
-  if (!rawMap) return;
+  if (!rawMap) {
+    return;
+  }
 
   let parsed;
   try {
@@ -50,7 +52,9 @@ async function main() {
   const owner = await originOwner(cwd);
   const expected = owner && accounts[owner.toLowerCase()];
   const signedIn = await signedInEmail();
-  if (!expected || !signedIn || expected.toLowerCase() === signedIn.toLowerCase()) return;
+  if (!expected || !signedIn || expected.toLowerCase() === signedIn.toLowerCase()) {
+    return;
+  }
 
   block(`The owner "${owner}" uses ${expected}, but Claude is signed in as ${signedIn}. Run /logout, then /login as ${expected}.`);
 }
@@ -97,7 +101,9 @@ function lowerCaseKeys(object) {
  */
 async function readStdin() {
   const chunks = [];
-  for await (const chunk of process.stdin) chunks.push(chunk);
+  for await (const chunk of process.stdin) {
+    chunks.push(chunk);
+  }
   return Buffer.concat(chunks).toString("utf8");
 }
 
@@ -112,7 +118,9 @@ async function originOwner(directory) {
     ({ stdout }) => stdout.trim(),
     () => undefined
   );
-  if (!url) return undefined;
+  if (!url) {
+    return undefined;
+  }
 
   // The scp form (git@github.com:owner/repo.git) is not a URL; the others are, whatever the scheme.
   const scpPath = url.match(/^[^/:]+:(?!\/\/)(.+)$/)?.[1];
@@ -129,7 +137,9 @@ async function originOwner(directory) {
 async function signedInEmail() {
   const configDir = process.env.CLAUDE_CONFIG_DIR ?? homedir();
   const config = await readFile(path.join(configDir, ".claude.json"), "utf8").then(JSON.parse, (error) => {
-    if (error.code === "ENOENT") return {};
+    if (error.code === "ENOENT") {
+      return {};
+    }
     throw error;
   });
   return config.oauthAccount?.emailAddress;

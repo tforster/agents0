@@ -31,7 +31,9 @@ async function gitOutput(cwd, args) {
     return (await run("git", args, { cwd })).stdout.trim();
   } catch (error) {
     // A non-zero exit is git saying "not a repository" -- an expected no-op. Anything else (git missing) is real.
-    if (typeof (/** @type {{ code?: unknown }} */ (error).code) === "number") return null;
+    if (typeof (/** @type {{ code?: unknown }} */ (error).code) === "number") {
+      return null;
+    }
     throw error;
   }
 }
@@ -50,7 +52,9 @@ async function isPlaceholder(file) {
     const stats = await lstat(file);
     return stats.isFile() && stats.size === 0 && (stats.mode & 0o222) === 0;
   } catch (error) {
-    if (/** @type {NodeJS.ErrnoException} */ (error).code === "ENOENT") return false;
+    if (/** @type {NodeJS.ErrnoException} */ (error).code === "ENOENT") {
+      return false;
+    }
     throw error;
   }
 }
@@ -70,7 +74,9 @@ async function isGitRunning() {
   } catch (error) {
     // pgrep exits 1 when nothing matches; ENOENT means pgrep itself is absent. Both mean no git to wait for.
     const { code } = /** @type {NodeJS.ErrnoException} */ (error);
-    if (code === "ENOENT" || String(code) === "1") return false;
+    if (code === "ENOENT" || String(code) === "1") {
+      return false;
+    }
     throw error;
   }
 }
@@ -86,7 +92,9 @@ async function isGitRunning() {
  */
 async function findStaleConfigLock(cwd) {
   const commonDirectory = await gitOutput(cwd, ["rev-parse", "--git-common-dir"]);
-  if (commonDirectory === null) return null;
+  if (commonDirectory === null) {
+    return null;
+  }
 
   const lock = path.resolve(cwd, commonDirectory, "config.lock");
   return (await isPlaceholder(lock)) && !(await isGitRunning()) ? lock : null;
@@ -100,7 +108,9 @@ async function findStaleConfigLock(cwd) {
  */
 export async function removeStaleConfigLock(cwd) {
   const lock = await findStaleConfigLock(cwd);
-  if (lock === null) return false;
+  if (lock === null) {
+    return false;
+  }
 
   await unlink(lock);
   return true;
@@ -128,13 +138,17 @@ async function listCandidates(directory) {
   /** @type {string[]} */
   const names = [];
   const entries = await readdir(directory).catch((error) => {
-    if (error.code === "ENOENT" || error.code === "ENOTDIR") return [];
+    if (error.code === "ENOENT" || error.code === "ENOTDIR") {
+      return [];
+    }
     throw error;
   });
   for (const name of entries) {
     const entry = path.join(directory, name);
     // Read-only too, not just empty: a user's own empty ignored file (.env, .claude/settings.local.json) is writable.
-    if ((await isPlaceholder(entry)) || (await lstat(entry)).isCharacterDevice()) names.push(name);
+    if ((await isPlaceholder(entry)) || (await lstat(entry)).isCharacterDevice()) {
+      names.push(name);
+    }
   }
   return names;
 }
@@ -152,7 +166,9 @@ async function listCandidates(directory) {
  */
 export async function sweepPlaceholders(cwd, { dryRun }) {
   const root = await gitOutput(cwd, ["rev-parse", "--show-toplevel"]);
-  if (root === null) throw new Error(`not a git repository: ${cwd}`);
+  if (root === null) {
+    throw new Error(`not a git repository: ${cwd}`);
+  }
 
   /** @type {SweepResult[]} */
   const results = [];
@@ -163,13 +179,18 @@ export async function sweepPlaceholders(cwd, { dryRun }) {
       const { stdout } = await run("git", ["status", "--porcelain", "--ignored", "--", relative], { cwd: root });
       const state = stdout.slice(0, 2);
 
-      if (state === "") results.push({ path: relative, action: "skip", reason: "tracked by git" });
-      else if (!["??", "!!", " A", "A "].includes(state)) {
+      if (state === "") {
+        results.push({ path: relative, action: "skip", reason: "tracked by git" });
+      } else if (!["??", "!!", " A", "A "].includes(state)) {
         results.push({ path: relative, action: "skip", reason: `git status '${state}', review by hand` });
       } else {
         // A broad `git add` sweeps placeholders into the index; the index entry has to go too or git reports a deletion.
-        if (!dryRun && state.includes("A")) await run("git", ["rm", "--cached", "--quiet", "--", relative], { cwd: root });
-        if (!dryRun) await unlink(path.join(root, relative));
+        if (!dryRun && state.includes("A")) {
+          await run("git", ["rm", "--cached", "--quiet", "--", relative], { cwd: root });
+        }
+        if (!dryRun) {
+          await unlink(path.join(root, relative));
+        }
         results.push({ path: relative, action: dryRun ? "would remove" : "removed" });
       }
     }
@@ -177,7 +198,9 @@ export async function sweepPlaceholders(cwd, { dryRun }) {
 
   const lock = await findStaleConfigLock(cwd);
   if (lock !== null) {
-    if (!dryRun) await unlink(lock);
+    if (!dryRun) {
+      await unlink(lock);
+    }
     results.push({ path: lock, action: dryRun ? "would remove" : "removed" });
   }
   return results;

@@ -29,7 +29,9 @@ const phpSyntaxErrorStatus = 255;
 async function readProductionPhp(repoRoot) {
   // A repo without composer.json is normal (legacy PHP); only that absence is swallowed, not a malformed file.
   const text = await readFile(path.join(repoRoot, "composer.json"), "utf8").catch((/** @type {ExecError} */ error) => {
-    if (error.code === "ENOENT") return "{}";
+    if (error.code === "ENOENT") {
+      return "{}";
+    }
     throw error;
   });
   const declared = JSON.parse(text).config?.platform?.php;
@@ -51,7 +53,9 @@ async function lintOnProduction(repoRoot, relativeFile, version) {
     return { status: "ok", output: "" };
   } catch (error) {
     const { code, stdout, stderr } = /** @type {ExecError} */ (error);
-    if (code !== phpSyntaxErrorStatus) return { status: "unavailable", output: "" };
+    if (code !== phpSyntaxErrorStatus) {
+      return { status: "unavailable", output: "" };
+    }
     return { status: "error", output: `${stdout}${stderr}`.trim() };
   }
 }
@@ -73,15 +77,18 @@ async function formatWithRepoConfig(repoRoot, relativeFile) {
         () => true,
         () => false
       ))
-    )
+    ) {
       continue;
+    }
     const before = await readFile(path.join(repoRoot, relativeFile), "utf8");
     try {
       await run("php-cs-fixer", ["fix", `--config=${config}`, "--quiet", relativeFile], { cwd: repoRoot });
     } catch (error) {
       const { code, stdout, stderr } = /** @type {ExecError} */ (error);
       // A missing binary is a machine without the fixer, not a problem with the file.
-      if (code === "ENOENT") return { reformatted: false };
+      if (code === "ENOENT") {
+        return { reformatted: false };
+      }
       return { problem: `${stdout}${stderr}`.trim(), reformatted: false };
     }
     return { reformatted: before !== (await readFile(path.join(repoRoot, relativeFile), "utf8")) };
@@ -98,18 +105,24 @@ async function formatWithRepoConfig(repoRoot, relativeFile) {
 async function handleEvent(event) {
   const filePath = event.tool_input.file_path;
   // vendor/ is third-party code the repo does not own, wherever it sits in the tree.
-  if (path.extname(filePath) !== ".php" || filePath.split(path.sep).includes("vendor")) return;
+  if (path.extname(filePath) !== ".php" || filePath.split(path.sep).includes("vendor")) {
+    return;
+  }
   // A PHP file outside any repo (a scratch file) has no config or declaration to honour: nothing to do.
   const repoRoot = await run("git", ["rev-parse", "--show-toplevel"], { cwd: path.dirname(filePath) }).then(
     ({ stdout }) => stdout.trim(),
     () => undefined
   );
-  if (!repoRoot) return;
+  if (!repoRoot) {
+    return;
+  }
   const relativeFile = path.relative(repoRoot, filePath);
 
   const problems = [];
   const { problem, reformatted } = await formatWithRepoConfig(repoRoot, relativeFile);
-  if (problem) problems.push(`php-cs-fixer failed on ${relativeFile}:\n${problem}`);
+  if (problem) {
+    problems.push(`php-cs-fixer failed on ${relativeFile}:\n${problem}`);
+  }
   // The fixer rewrites the file after the Edit, so Claude's copy is stale: its next Edit would fail, or it
   // would reason about old content.
   const notes = reformatted ? [`php-cs-fixer reformatted ${relativeFile}; re-read before editing it again`] : [];
@@ -118,11 +131,19 @@ async function handleEvent(event) {
   const version = await readProductionPhp(repoRoot);
   if (version) {
     const lint = await lintOnProduction(repoRoot, relativeFile, version);
-    if (lint.status === "error") problems.push(`php -l on php ${version} reports ${relativeFile}:\n${lint.output}`);
-    if (lint.status === "unavailable") notes.push("php -l skipped: docker unavailable");
+    if (lint.status === "error") {
+      problems.push(`php -l on php ${version} reports ${relativeFile}:\n${lint.output}`);
+    }
+    if (lint.status === "unavailable") {
+      notes.push("php -l skipped: docker unavailable");
+    }
   }
-  if (problems.length > 0) return { decision: "block", reason: [...problems, ...notes].join("\n\n") };
-  if (notes.length > 0) return { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: notes.join("\n") } };
+  if (problems.length > 0) {
+    return { decision: "block", reason: [...problems, ...notes].join("\n\n") };
+  }
+  if (notes.length > 0) {
+    return { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: notes.join("\n") } };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -130,6 +151,10 @@ async function handleEvent(event) {
 // ---------------------------------------------------------------------------
 
 const chunks = [];
-for await (const chunk of process.stdin) chunks.push(chunk);
+for await (const chunk of process.stdin) {
+  chunks.push(chunk);
+}
 const output = await handleEvent(JSON.parse(Buffer.concat(chunks).toString("utf8")));
-if (output) process.stdout.write(JSON.stringify(output));
+if (output) {
+  process.stdout.write(JSON.stringify(output));
+}

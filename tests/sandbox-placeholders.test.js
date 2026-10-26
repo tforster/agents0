@@ -22,7 +22,9 @@ const sweepScript = path.join(repoRoot, "hooks", "sweep-placeholders.js");
 const temporaryDirectories = [];
 
 afterEach(async () => {
-  for (const directory of temporaryDirectories.splice(0)) await rm(directory, { recursive: true, force: true });
+  for (const directory of temporaryDirectories.splice(0)) {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 /**
@@ -279,9 +281,12 @@ describe("AGEN-23 placeholder sweep", () => {
 
     await runSweep(root);
 
-    for (const gone of [".zshrc", ".mcp.json", ".claude/skills"])
+    for (const gone of [".zshrc", ".mcp.json", ".claude/skills"]) {
       assert.ok(!(await exists(path.join(root, gone))), `${gone} stayed`);
-    for (const kept of [".bashrc", ".claude/settings.json"]) assert.ok(await exists(path.join(root, kept)), `${kept} was removed`);
+    }
+    for (const kept of [".bashrc", ".claude/settings.json"]) {
+      assert.ok(await exists(path.join(root, kept)), `${kept} was removed`);
+    }
   });
 
   it("AGEN-23 AC3: an ignored, writable, empty file the user made (.env) survives; only read-only placeholders go", async () => {

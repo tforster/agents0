@@ -17,7 +17,9 @@ globalThis.fetch = /** @type {typeof fetch} */ (
     appendFileSync(String(process.env.MockLog), `${JSON.stringify({ method, url: String(url), body })}\n`);
 
     const index = routes.findIndex((route) => route.method === method && String(url).includes(route.path));
-    if (index === -1) return new Response(`no mock route for ${method} ${url}`, { status: 500 });
+    if (index === -1) {
+      return new Response(`no mock route for ${method} ${url}`, { status: 500 });
+    }
 
     const [route] = routes[index].once ? routes.splice(index, 1) : [routes[index]];
     const status = route.status ?? (route.json === undefined ? 204 : 200);
