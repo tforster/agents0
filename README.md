@@ -120,6 +120,7 @@ flowchart LR
   install -- yes --> depGate["Dependency gate -- BLOCK"]:::planned
   bash --> git{"force-push, merge,<br/>switch to main?"}
   git -- yes --> gitGate["Git gate -- BLOCK"]:::planned
+  bash --> configLock["Remove stale sandbox<br/>.git/config.lock"]:::exists
   edit(["Edit or Write"]) --> fileType{"File type?"}
   fileType -- "*.js" --> jsLint["oxfmt and oxlint"]:::planned
   fileType -- "*.php" --> phpLint["php-cs-fixer and php -l"]:::exists
