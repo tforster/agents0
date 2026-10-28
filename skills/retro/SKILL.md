@@ -63,10 +63,10 @@ Gather every source for `from`..`to`. Timestamps from Jira and GitHub are UTC; c
 The script's output from step 2. For the issues that carry the story -- the goal's, the large ones, those added mid-sprint, those carried over -- read comments and changelog with the `jira` skill's `get` and `comment list`, or the Atlassian MCP `getJiraIssue`. Then find work done for the client outside the sprint:
 
 ```bash
-J search 'project = PROJECT AND issuekey in updatedBy(currentUser(), "FROM", "TO_PLUS_ONE") AND sprint != SPRINT_ID' --max 100
+J search 'project = PROJECT AND updated >= "FROM" AND updated < "TO_PLUS_ONE" AND (assignee = currentUser() OR reporter = currentUser()) AND (sprint is EMPTY OR sprint != SPRINT_ID)' --max 100
 ```
 
-`J` is `node ${CLAUDE_SKILL_DIR}/../jira/scripts/jira.mjs`; `TO_PLUS_ONE` is the day after `to`.
+`J` is `node ${CLAUDE_SKILL_DIR}/../jira/scripts/jira.mjs`; `TO_PLUS_ONE` is the day after `to`. Not `updatedBy()`: some sites reject it inside `issuekey in`. Subtasks of an in-sprint story land here too; count them under their story. New stories created in the range are often findings that belong under "Carried Over" as new work.
 
 ### 4.2. Git
 
@@ -88,7 +88,7 @@ login=$(gh api user --jq .login)
 gh search prs --owner=OWNER --involves="$login" --updated="FROM..TO" --json repository,number,title,state,createdAt,closedAt,url --limit 200
 ```
 
-Once per `github` owner. PRs show what shipped, what is still in review, and what review turned up.
+Once per `github` owner. `--updated` also returns old PRs touched in the range (a comment, a label); keep those created or closed in it, and open ones. PRs show what shipped, what is still in review, and what review turned up.
 
 ### 4.4. Claude transcripts
 
@@ -117,7 +117,7 @@ Where Microsoft 365 is connected, the client's meetings and threads in the range
 
 ## 6. Output
 
-Write the retro to `RETROS/YYYY-MM-DD-sprint-N.md`, dated the sprint's last day, then show it in full. `RETROS` is the client's `retros`; create it with a `README.md` index on first use, and add each retro to the index. The retro follows the house Markdown rules:
+Write the retro to `RETROS/YYYY-MM-DD-sprint-N.md`, dated the sprint's last day, then show it in full. `RETROS` is the client's `retros`; create it with a `README.md` index on first use, and add each retro to the index. The retro follows the house Markdown rules; write it, then run the `markdown` skill's `number-sections.js` and `update-toc.js` on it:
 
 ```markdown
 # CPC Sprint 73 Retrospective <!-- omit in toc -->
