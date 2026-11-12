@@ -85,7 +85,7 @@ describe("claude-log.mjs", () => {
     const result = run(
       [
         // 02:00Z is 22:00 the previous day in Toronto, so it belongs to the 18th.
-        line("2026-10-19T02:00:00.000Z", "Start CA-1489 grilling", { gitBranch: "agen-54-timetracker-skill" }),
+        line("2026-10-19T02:00:00.000Z", "Start ABC-1489 grilling", { gitBranch: "agen-54-timetracker-skill" }),
         line("2026-10-19T03:30:00.000Z", [{ type: "text", text: "and   check\nAGEN-53" }]),
         line("2026-10-19T14:00:00.000Z", "next day work"),
       ],
@@ -101,8 +101,8 @@ describe("claude-log.mjs", () => {
     const [project] = days[0].projects;
     assert.strictEqual(project.cwd, "/home/me/dev/agents0");
     assert.deepStrictEqual(project.branches, ["agen-54-timetracker-skill"]);
-    assert.deepStrictEqual(project.tickets, ["AGEN-53", "AGEN-54", "CA-1489"]);
-    assert.deepStrictEqual(project.prompts, ["Start CA-1489 grilling", "and check AGEN-53"]);
+    assert.deepStrictEqual(project.tickets, ["ABC-1489", "AGEN-53", "AGEN-54"]);
+    assert.deepStrictEqual(project.prompts, ["Start ABC-1489 grilling", "and check AGEN-53"]);
     assert.strictEqual(project.first, "22:00");
     assert.strictEqual(project.last, "23:30");
   });

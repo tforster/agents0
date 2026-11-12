@@ -45,7 +45,7 @@ Ticket keys come from commit messages and PR titles (`(Re: AGEN-54)`) and branch
 ```bash
 J search 'issuekey in updatedBy(currentUser(), "FROM", "TO_PLUS_ONE")' --max 100
 J search 'worklogAuthor = currentUser() AND worklogDate >= "FROM" AND worklogDate <= "TO"' --max 100
-J comment list CA-123
+J comment list ABC-123
 ```
 
 `TO_PLUS_ONE` is the day after `TO`, so the last day is included; filter to the range by timestamp afterwards. For each issue, the user's own comments and, through the Atlassian MCP `getJiraIssue` with the changelog expanded, their status and field changes say what was done.

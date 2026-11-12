@@ -1,14 +1,14 @@
-// account-gate.js -- UserPromptSubmit hook that refuses a prompt when the signed-in Claude account is
+// account-gate.js -- UserPromptSubmit hook that warns, in one line, when the signed-in Claude account is
 // not the one mapped to the repo's `origin` owner (AGEN-22, D75)
 //
-// A session cannot change its own account, so the only fix is /logout and /login; blocking the prompt
-// is the one moment that can say so. The owner-to-account map is the ClaudeAccounts environment
-// variable, a JSON object of remote owner to account email, exported from the user's shell profile.
-// It stays out of this public repo on purpose.
+// A session cannot change its own account, so the only fix is /logout and /login. It warns rather than
+// blocks so a deliberate cross-account session (e.g. editing agents0 while signed in to a client account) still works.
+// The owner-to-account map is the ClaudeAccounts environment variable, a JSON object of remote owner to
+// account email, exported from the user's shell profile. It stays out of this public repo on purpose.
 //
 // Passes silently (no output, exit 0) when it cannot tell: variable unset, no repo, no origin, an
-// owner not in the map, or no signed-in account. A malformed variable blocks instead, because a
-// typo in a shell profile would otherwise switch the gate off unnoticed.
+// owner not in the map, or no signed-in account. A malformed variable warns too, because a typo in a
+// shell profile would otherwise switch the gate off unnoticed.
 
 // System dependencies
 import { execFile } from "node:child_process";
@@ -22,7 +22,7 @@ const run = promisify(execFile);
 await main();
 
 /**
- * Reads the hook input and blocks the prompt on an account mismatch.
+ * Reads the hook input and warns on an account mismatch.
  *
  * @returns {Promise<void>}
  */
@@ -36,13 +36,13 @@ async function main() {
   try {
     parsed = JSON.parse(rawMap);
   } catch (error) {
-    return block(
+    return warn(
       `ClaudeAccounts is not valid JSON (${error instanceof Error ? error.message : error}). Fix the export in your shell profile, then restart Claude.`
     );
   }
   // Validate at the boundary, then trust: a wrong shape would otherwise pass silently or crash below.
   if (!isAccountMap(parsed)) {
-    return block(
+    return warn(
       "ClaudeAccounts must be a JSON object of owner to account email. Fix the export in your shell profile, then restart Claude."
     );
   }
@@ -56,17 +56,17 @@ async function main() {
     return;
   }
 
-  block(`The owner "${owner}" uses ${expected}, but Claude is signed in as ${signedIn}. Run /logout, then /login as ${expected}.`);
+  warn(`The owner "${owner}" uses ${expected}, but Claude is signed in as ${signedIn}. Run /logout, then /login as ${expected}.`);
 }
 
 /**
- * Refuses the prompt. Claude Code shows the reason to the user and erases the prompt.
+ * Shows the user a one-line warning and lets the prompt through.
  *
- * @param {string} reason - What to tell the user.
+ * @param {string} message - What to tell the user.
  * @returns {void}
  */
-function block(reason) {
-  process.stdout.write(JSON.stringify({ decision: "block", reason }));
+function warn(message) {
+  process.stdout.write(JSON.stringify({ systemMessage: `Account gate: ${message}` }));
 }
 
 /**

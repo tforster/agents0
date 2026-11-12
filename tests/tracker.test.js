@@ -16,7 +16,7 @@ const jiraScript = path.join(repoRoot, "skills", "jira", "scripts", "jira.mjs");
 const mockFetch = path.join(import.meta.dirname, "helpers", "mock-fetch.js");
 
 const trackerDeclaration =
-  "# Issue Tracker\n\nIssues are tracked in **Jira**, project key `CA`, on `https://cpc-aws.atlassian.net`.\n";
+  "# Issue Tracker\n\nIssues are tracked in **Jira**, project key `ABC`, on `https://acme.atlassian.net`.\n";
 
 /**
  * @typedef {Object} Route
@@ -114,31 +114,31 @@ describe("tracker skill", () => {
   it("AC2: next queries the open sprint by Rank first, with Story, To Do and label filters", () => {
     const { stdout, requests, status } = runJira(["next", "--label", "ready-for-agent"], {
       cwd: makeRepo(trackerDeclaration),
-      routes: [searchHit("CA-7")],
+      routes: [searchHit("ABC-7")],
     });
 
     assert.strictEqual(status, 0);
     assert.strictEqual(requests.length, 1);
     assert.strictEqual(
       requests[0].body.jql,
-      'project = "CA" AND issuetype = Story AND statusCategory = "To Do" AND sprint in openSprints() AND labels = "ready-for-agent" ORDER BY Rank ASC'
+      'project = "ABC" AND issuetype = Story AND statusCategory = "To Do" AND sprint in openSprints() AND labels = "ready-for-agent" ORDER BY Rank ASC'
     );
     assert.strictEqual(requests[0].body.maxResults, 1);
-    assert.match(stdout, /CA-7: Summary of CA-7/);
+    assert.match(stdout, /ABC-7: Summary of ABC-7/);
   });
 
   it("AC2: next falls back to the backlog by Rank, including stories returned from a closed sprint, when the open sprint has nothing", () => {
     const { stdout, requests } = runJira(["next"], {
       cwd: makeRepo(trackerDeclaration),
-      routes: [{ method: "POST", path: "/search/jql", json: { issues: [] }, once: true }, searchHit("CA-9")],
+      routes: [{ method: "POST", path: "/search/jql", json: { issues: [] }, once: true }, searchHit("ABC-9")],
     });
 
     assert.strictEqual(requests.length, 2);
     assert.strictEqual(
       requests[1].body.jql,
-      'project = "CA" AND issuetype = Story AND statusCategory = "To Do" AND (sprint is EMPTY OR sprint not in (openSprints(), futureSprints())) ORDER BY Rank ASC'
+      'project = "ABC" AND issuetype = Story AND statusCategory = "To Do" AND (sprint is EMPTY OR sprint not in (openSprints(), futureSprints())) ORDER BY Rank ASC'
     );
-    assert.match(stdout, /CA-9/);
+    assert.match(stdout, /ABC-9/);
     assert.match(stdout, /backlog/);
   });
 
@@ -153,42 +153,42 @@ describe("tracker skill", () => {
   });
 
   it("AC3: get returns the story with its parent epic's description", () => {
-    const { stdout, requests } = runJira(["get", "CA-10"], {
+    const { stdout, requests } = runJira(["get", "ABC-10"], {
       routes: [
         {
           method: "GET",
-          path: "/issue/CA-10",
+          path: "/issue/ABC-10",
           json: {
-            key: "CA-10",
+            key: "ABC-10",
             fields: {
               summary: "Build it",
               issuetype: { name: "Story" },
               status: { name: "To Do" },
-              parent: { key: "CA-1" },
+              parent: { key: "ABC-1" },
               description: adf("What to build"),
             },
           },
         },
         {
           method: "GET",
-          path: "/issue/CA-1?",
+          path: "/issue/ABC-1?",
           json: {
-            key: "CA-1",
+            key: "ABC-1",
             fields: { summary: "The epic", issuetype: { name: "Epic" }, description: adf("Decision: use fetch. Rejected: axios.") },
           },
         },
       ],
     });
 
-    assert.match(stdout, /CA-10: Build it/);
-    assert.match(stdout, /Epic: CA-1: The epic/);
+    assert.match(stdout, /ABC-10: Build it/);
+    assert.match(stdout, /Epic: ABC-1: The epic/);
     assert.match(stdout, /Decision: use fetch\. Rejected: axios\./);
     assert.doesNotMatch(stdout, /Blueprint:/);
-    assert.ok(requests.some((r) => r.url.includes("/issue/CA-1?fields=")));
+    assert.ok(requests.some((r) => r.url.includes("/issue/ABC-1?fields=")));
   });
 
   it("AC3: get surfaces the epic's linked blueprint file, from a link mark, a card or plain text", () => {
-    const blueprint = "https://github.com/Canadian-Pork-Council/cpc.platform/blob/main/docs/epics/CA-1-feature.md";
+    const blueprint = "https://github.com/acme-org/acme.platform/blob/main/docs/epics/ABC-1-feature.md";
     const descriptions = [
       {
         type: "doc",
@@ -205,78 +205,78 @@ describe("tracker skill", () => {
     ];
 
     for (const description of descriptions) {
-      const { stdout } = runJira(["get", "CA-10"], {
+      const { stdout } = runJira(["get", "ABC-10"], {
         routes: [
           {
             method: "GET",
-            path: "/issue/CA-10",
-            json: { key: "CA-10", fields: { summary: "S", parent: { key: "CA-1" } } },
+            path: "/issue/ABC-10",
+            json: { key: "ABC-10", fields: { summary: "S", parent: { key: "ABC-1" } } },
           },
-          { method: "GET", path: "/issue/CA-1?", json: { key: "CA-1", fields: { summary: "E", description } } },
+          { method: "GET", path: "/issue/ABC-1?", json: { key: "ABC-1", fields: { summary: "E", description } } },
         ],
       });
 
-      assert.match(stdout, /Blueprint: docs\/epics\/CA-1-feature\.md/);
+      assert.match(stdout, /Blueprint: docs\/epics\/ABC-1-feature\.md/);
       assert.ok(stdout.includes(blueprint), "full link is reported too");
     }
   });
 
   it("AC4: comment adds a comment as ADF", () => {
-    const { stdout, requests } = runJira(["comment", "add", "CA-10", "Ready", "for", "review"], {
-      routes: [{ method: "POST", path: "/issue/CA-10/comment", json: {} }],
+    const { stdout, requests } = runJira(["comment", "add", "ABC-10", "Ready", "for", "review"], {
+      routes: [{ method: "POST", path: "/issue/ABC-10/comment", json: {} }],
     });
 
     assert.deepStrictEqual(requests[0].body, { body: adf("Ready for review") });
-    assert.match(stdout, /Commented on CA-10/);
+    assert.match(stdout, /Commented on ABC-10/);
   });
 
   it("AC5: transition moves an issue by status name", () => {
-    const { requests, stdout } = runJira(["update", "CA-10", "--status", "in progress"], {
+    const { requests, stdout } = runJira(["update", "ABC-10", "--status", "in progress"], {
       routes: [
-        { method: "GET", path: "/issue/CA-10/transitions", json: { transitions: [{ id: "21", name: "In Progress" }] } },
-        { method: "POST", path: "/issue/CA-10/transitions", status: 204 },
+        { method: "GET", path: "/issue/ABC-10/transitions", json: { transitions: [{ id: "21", name: "In Progress" }] } },
+        { method: "POST", path: "/issue/ABC-10/transitions", status: 204 },
       ],
     });
 
     assert.deepStrictEqual(requests[1].body, { transition: { id: "21" } });
-    assert.match(stdout, /Transitioned CA-10/);
+    assert.match(stdout, /Transitioned ABC-10/);
   });
 
   it("AC6: create makes a story with project, description and acceptance criteria", () => {
     const { requests, stdout } = runJira(["create", "--summary", "New thing", "--description", "Why", "--ac", "Given a\\nThen b"], {
       cwd: makeRepo(trackerDeclaration),
-      routes: [{ method: "POST", path: "/issue", json: { key: "CA-11" } }],
+      routes: [{ method: "POST", path: "/issue", json: { key: "ABC-11" } }],
     });
 
     const { fields } = requests[0].body;
-    assert.deepStrictEqual(fields.project, { key: "CA" });
+    assert.deepStrictEqual(fields.project, { key: "ABC" });
     assert.deepStrictEqual(fields.issuetype, { name: "Story" });
     assert.strictEqual(fields.summary, "New thing");
     assert.strictEqual(fields.customfield_2.content[0].content.length, 2);
-    assert.match(stdout, /Created CA-11/);
+    assert.match(stdout, /Created ABC-11/);
   });
 
   it("AC7: set-parent sets an issue's parent epic", () => {
-    const { requests, stdout } = runJira(["set-parent", "CA-10", "CA-1"], {
-      routes: [{ method: "PUT", path: "/issue/CA-10", status: 204 }],
+    const { requests, stdout } = runJira(["set-parent", "ABC-10", "ABC-1"], {
+      routes: [{ method: "PUT", path: "/issue/ABC-10", status: 204 }],
     });
 
     assert.strictEqual(requests[0].method, "PUT");
-    assert.deepStrictEqual(requests[0].body, { fields: { parent: { key: "CA-1" } } });
-    assert.match(stdout, /CA-10 is now a child of CA-1/);
+    assert.deepStrictEqual(requests[0].body, { fields: { parent: { key: "ABC-1" } } });
+    assert.match(stdout, /ABC-10 is now a child of ABC-1/);
   });
 
   it("AC8: link creates a Blocks link with the blocker outward and the blocked issue inward", () => {
-    const { requests, stdout } = runJira(["link", "CA-10", "CA-11"], {
+    const { requests, stdout } = runJira(["link", "ABC-10", "ABC-11"], {
       routes: [{ method: "POST", path: "/issueLink", status: 201 }],
     });
 
     assert.deepStrictEqual(requests[0].body, {
       type: { name: "Blocks" },
-      outwardIssue: { key: "CA-10" },
-      inwardIssue: { key: "CA-11" },
+      outwardIssue: { key: "ABC-10" },
+      inwardIssue: { key: "ABC-11" },
     });
-    assert.match(stdout, /CA-10 blocks CA-11/);
+    assert.match(stdout, /ABC-10 blocks ABC-11/);
   });
 
   it("AC9: backend, project and site resolve from docs/agents/issue-tracker.md, even from a subdirectory", () => {
@@ -289,15 +289,15 @@ describe("tracker skill", () => {
     assert.strictEqual(status, 0);
     const resolved = JSON.parse(stdout);
     assert.strictEqual(resolved.backend, "jira");
-    assert.strictEqual(resolved.project, "CA");
-    assert.strictEqual(resolved.baseUrl, "https://cpc-aws.atlassian.net");
+    assert.strictEqual(resolved.project, "ABC");
+    assert.strictEqual(resolved.baseUrl, "https://acme.atlassian.net");
   });
 
   it("AC9: the declared site and project are used for requests, and --project still wins", () => {
     const repo = makeRepo(trackerDeclaration);
     const { requests } = runJira(["next", "--project", "OTHER"], { cwd: repo, routes: [searchHit("OTHER-1")] });
 
-    assert.ok(requests[0].url.startsWith("https://cpc-aws.atlassian.net/rest/api/3/"));
+    assert.ok(requests[0].url.startsWith("https://acme.atlassian.net/rest/api/3/"));
     assert.match(requests[0].body.jql, /^project = "OTHER" AND /);
   });
 
@@ -314,16 +314,16 @@ describe("tracker skill", () => {
   it("AC9: only the declaration sentence is read, so a migration note or another site's link cannot win", () => {
     const declaration =
       "# Issue Tracker\n\nWe migrated from **Paca**; see https://other.atlassian.net/wiki and project key `OLD`.\n\n" +
-      "Issues are tracked in Jira. Project key `CA`, on https://cpc-aws.atlassian.net.\n";
+      "Issues are tracked in Jira. Project key `ABC`, on https://acme.atlassian.net.\n";
     const resolved = JSON.parse(runJira(["resolve"], { cwd: makeRepo(declaration) }).stdout);
 
     assert.strictEqual(resolved.backend, "jira");
-    assert.strictEqual(resolved.project, "CA");
-    assert.strictEqual(resolved.baseUrl, "https://cpc-aws.atlassian.net");
+    assert.strictEqual(resolved.project, "ABC");
+    assert.strictEqual(resolved.baseUrl, "https://acme.atlassian.net");
   });
 
   it("AC9: a lookalike host is not taken as the declared site", () => {
-    const declaration = "Issues are tracked in **Jira**, project key `CA`, on https://x.atlassian.net.evil.com.\n";
+    const declaration = "Issues are tracked in **Jira**, project key `ABC`, on https://x.atlassian.net.evil.com.\n";
     const resolved = JSON.parse(runJira(["resolve"], { cwd: makeRepo(declaration) }).stdout);
 
     assert.strictEqual(resolved.baseUrl, undefined);
@@ -353,7 +353,7 @@ describe("tracker skill", () => {
     });
     assert.strictEqual(whoami.status, 0);
 
-    const next = runJira(["next", "--project", "CA"], { cwd, routes: [searchHit("CA-1")] });
+    const next = runJira(["next", "--project", "ABC"], { cwd, routes: [searchHit("ABC-1")] });
     assert.strictEqual(next.status, 0);
     assert.ok(next.requests[0].url.startsWith("https://example.atlassian.net/"), "Paca repo does not set the Jira site");
   });
@@ -367,35 +367,35 @@ describe("tracker skill", () => {
           type: "paragraph",
           content: [
             { type: "text", text: "Broken link", marks: [{ type: "link" }] },
-            { type: "text", text: " Full blueprint: docs/epics/CA-1-feature.md" },
+            { type: "text", text: " Full blueprint: docs/epics/ABC-1-feature.md" },
           ],
         },
       ],
     };
-    const { stdout, status } = runJira(["get", "CA-10"], {
+    const { stdout, status } = runJira(["get", "ABC-10"], {
       routes: [
-        { method: "GET", path: "/issue/CA-10", json: { key: "CA-10", fields: { summary: "S", parent: { key: "CA-1" } } } },
-        { method: "GET", path: "/issue/CA-1?", json: { key: "CA-1", fields: { summary: "E", description } } },
+        { method: "GET", path: "/issue/ABC-10", json: { key: "ABC-10", fields: { summary: "S", parent: { key: "ABC-1" } } } },
+        { method: "GET", path: "/issue/ABC-1?", json: { key: "ABC-1", fields: { summary: "E", description } } },
       ],
     });
 
     assert.strictEqual(status, 0);
-    assert.match(stdout, /Blueprint: docs\/epics\/CA-1-feature\.md/);
+    assert.match(stdout, /Blueprint: docs\/epics\/ABC-1-feature\.md/);
     assert.doesNotMatch(stdout, /Link:/);
   });
 
   it("AC3: get names a subtask's parent story without fetching it as an epic", () => {
-    const { stdout, requests } = runJira(["get", "CA-15"], {
+    const { stdout, requests } = runJira(["get", "ABC-15"], {
       routes: [
         {
           method: "GET",
-          path: "/issue/CA-15",
+          path: "/issue/ABC-15",
           json: {
-            key: "CA-15",
+            key: "ABC-15",
             fields: {
               summary: "Sub",
               issuetype: { name: "Subtask", subtask: true },
-              parent: { key: "CA-10", fields: { summary: "The story" } },
+              parent: { key: "ABC-10", fields: { summary: "The story" } },
             },
           },
         },
@@ -403,15 +403,15 @@ describe("tracker skill", () => {
     });
 
     assert.strictEqual(requests.length, 1);
-    assert.match(stdout, /Parent: CA-10: The story/);
+    assert.match(stdout, /Parent: ABC-10: The story/);
     assert.doesNotMatch(stdout, /description \(the blueprint/);
   });
 
   it("AC5: update with --status and --label transitions without failing on the next-only label", () => {
-    const { status, requests } = runJira(["update", "CA-10", "--status", "Done", "--label", "ready-for-agent"], {
+    const { status, requests } = runJira(["update", "ABC-10", "--status", "Done", "--label", "ready-for-agent"], {
       routes: [
-        { method: "GET", path: "/issue/CA-10/transitions", json: { transitions: [{ id: "31", name: "Done" }] } },
-        { method: "POST", path: "/issue/CA-10/transitions", status: 204 },
+        { method: "GET", path: "/issue/ABC-10/transitions", json: { transitions: [{ id: "31", name: "Done" }] } },
+        { method: "POST", path: "/issue/ABC-10/transitions", status: 204 },
       ],
     });
 
@@ -420,9 +420,9 @@ describe("tracker skill", () => {
   });
 
   it("AC2: next quotes the project key in JQL", () => {
-    const { requests } = runJira(["next", "--project", "CA OR project = HR"], { routes: [searchHit("CA-1")] });
+    const { requests } = runJira(["next", "--project", "ABC OR project = XYZ"], { routes: [searchHit("ABC-1")] });
 
-    assert.match(requests[0].body.jql, /^project = "CA OR project = HR" AND /);
+    assert.match(requests[0].body.jql, /^project = "ABC OR project = XYZ" AND /);
   });
 
   it("AC9: credentials come from env vars, and missing ones fail before any request", () => {
@@ -435,27 +435,27 @@ describe("tracker skill", () => {
 });
 
 /**
- * Runs `get CA-10` for a story whose parent is CA-1, each with the given description.
+ * Runs `get ABC-10` for a story whose parent is ABC-1, each with the given description.
  *
  * @param {object | undefined} storyDescription - The story's ADF description.
  * @param {object | undefined} parentDescription - The parent epic's ADF description.
  * @returns {ReturnType<typeof runJira>}
  */
 function getStory(storyDescription, parentDescription) {
-  return runJira(["get", "CA-10"], {
+  return runJira(["get", "ABC-10"], {
     routes: [
       {
         method: "GET",
-        path: "/issue/CA-10",
+        path: "/issue/ABC-10",
         json: {
-          key: "CA-10",
-          fields: { summary: "S", issuetype: { name: "Story" }, parent: { key: "CA-1" }, description: storyDescription },
+          key: "ABC-10",
+          fields: { summary: "S", issuetype: { name: "Story" }, parent: { key: "ABC-1" }, description: storyDescription },
         },
       },
       {
         method: "GET",
-        path: "/issue/CA-1?",
-        json: { key: "CA-1", fields: { summary: "E", issuetype: { name: "Epic" }, description: parentDescription } },
+        path: "/issue/ABC-1?",
+        json: { key: "ABC-1", fields: { summary: "E", issuetype: { name: "Epic" }, description: parentDescription } },
       },
     ],
   });
@@ -468,7 +468,7 @@ function getStory(storyDescription, parentDescription) {
  * @returns {{ form: string, description: object, url?: string }[]}
  */
 function blueprintForms(repoPath) {
-  const url = `https://github.com/Canadian-Pork-Council/cpc.platform/blob/main/${repoPath}`;
+  const url = `https://github.com/acme-org/acme.platform/blob/main/${repoPath}`;
   const link = { type: "text", text: "Blueprint", marks: [{ type: "link", attrs: { href: url } }] };
   return [
     { form: "link", url, description: { type: "doc", version: 1, content: [{ type: "paragraph", content: [link] }] } },
@@ -480,7 +480,7 @@ function blueprintForms(repoPath) {
 
 describe("blueprints (AGEN-52)", () => {
   it("AC1, AC2: get detects a parent's blueprint in docs/blueprints/ and still in docs/epics/, in all four forms", () => {
-    for (const repoPath of ["docs/blueprints/CA-1-feature.md", "docs/epics/CA-1-feature.md"]) {
+    for (const repoPath of ["docs/blueprints/ABC-1-feature.md", "docs/epics/ABC-1-feature.md"]) {
       for (const { form, description, url } of blueprintForms(repoPath)) {
         const { stdout, status } = getStory(undefined, description);
 
@@ -494,11 +494,11 @@ describe("blueprints (AGEN-52)", () => {
   });
 
   it("AC3: get prints a story's own blueprint when its parent has none, in all four forms", () => {
-    for (const { form, description, url } of blueprintForms("docs/blueprints/CA-10-story.md")) {
+    for (const { form, description, url } of blueprintForms("docs/blueprints/ABC-10-story.md")) {
       const { stdout, status } = getStory(description, adf("Epic summary, no blueprint."));
 
       assert.strictEqual(status, 0);
-      assert.ok(stdout.includes("Blueprint: docs/blueprints/CA-10-story.md"), `story blueprint as a ${form}`);
+      assert.ok(stdout.includes("Blueprint: docs/blueprints/ABC-10-story.md"), `story blueprint as a ${form}`);
       if (url) {
         assert.ok(stdout.includes(`Link: ${url}`), `story blueprint as a ${form} reports the link`);
       }
@@ -507,17 +507,17 @@ describe("blueprints (AGEN-52)", () => {
   });
 
   it("AC3: get prints the blueprint of a story too small for an epic, which has no parent at all", () => {
-    const { stdout, status, requests } = runJira(["get", "CA-12"], {
+    const { stdout, status, requests } = runJira(["get", "ABC-12"], {
       routes: [
         {
           method: "GET",
-          path: "/issue/CA-12",
+          path: "/issue/ABC-12",
           json: {
-            key: "CA-12",
+            key: "ABC-12",
             fields: {
               summary: "Small",
               issuetype: { name: "Story" },
-              description: adf("Full blueprint: docs/blueprints/CA-12-small.md"),
+              description: adf("Full blueprint: docs/blueprints/ABC-12-small.md"),
             },
           },
         },
@@ -526,18 +526,18 @@ describe("blueprints (AGEN-52)", () => {
 
     assert.strictEqual(status, 0);
     assert.strictEqual(requests.length, 1);
-    assert.match(stdout, /Blueprint: docs\/blueprints\/CA-12-small\.md \(Story CA-12\)/);
+    assert.match(stdout, /Blueprint: docs\/blueprints\/ABC-12-small\.md \(Story ABC-12\)/);
   });
 
   it("AC4: get prints both blueprints, each labelled with its issue, when the story and its parent both link one", () => {
     const { stdout, status } = getStory(
-      adf("Story summary. Full blueprint: docs/blueprints/CA-10-story.md"),
-      adf("Epic summary. Full blueprint: docs/blueprints/CA-1-feature.md")
+      adf("Story summary. Full blueprint: docs/blueprints/ABC-10-story.md"),
+      adf("Epic summary. Full blueprint: docs/blueprints/ABC-1-feature.md")
     );
 
     assert.strictEqual(status, 0);
-    assert.match(stdout, /Blueprint: docs\/blueprints\/CA-10-story\.md \(Story CA-10\)/);
-    assert.match(stdout, /Blueprint: docs\/blueprints\/CA-1-feature\.md \(Epic CA-1\)/);
+    assert.match(stdout, /Blueprint: docs\/blueprints\/ABC-10-story\.md \(Story ABC-10\)/);
+    assert.match(stdout, /Blueprint: docs\/blueprints\/ABC-1-feature\.md \(Epic ABC-1\)/);
   });
 
   it("AC5: get prints no Blueprint line when neither the story nor its parent links one", () => {
@@ -547,14 +547,14 @@ describe("blueprints (AGEN-52)", () => {
     );
 
     assert.strictEqual(status, 0);
-    assert.match(stdout, /Epic: CA-1: E/);
+    assert.match(stdout, /Epic: ABC-1: E/);
     assert.doesNotMatch(stdout, /Blueprint:/);
   });
 });
 
 describe("plain-text URL punctuation (AGEN-53)", () => {
   it("AC1: a blueprint URL typed in plain text prints its Link without the punctuation that follows it", () => {
-    const url = "https://github.com/Canadian-Pork-Council/cpc.platform/blob/main/docs/blueprints/CA-1253-pipelines.md";
+    const url = "https://github.com/acme-org/acme.platform/blob/main/docs/blueprints/ABC-1253-pipelines.md";
     for (const text of [`(see ${url}).`, `See ${url}.`, `"${url}",`, `[${url}];`, `${url}?!`]) {
       const { stdout, status } = getStory(adf(`Summary ${text}`), undefined);
 
@@ -564,7 +564,7 @@ describe("plain-text URL punctuation (AGEN-53)", () => {
   });
 
   it("AC2: link marks and smart cards keep their URL exactly as written, even ending in punctuation", () => {
-    const url = "https://github.com/Canadian-Pork-Council/cpc.platform/blob/main/docs/blueprints/CA-1253-pipelines.md?view=(raw)";
+    const url = "https://github.com/acme-org/acme.platform/blob/main/docs/blueprints/ABC-1253-pipelines.md?view=(raw)";
     const link = { type: "text", text: "Blueprint", marks: [{ type: "link", attrs: { href: url } }] };
     const descriptions = [
       { type: "doc", version: 1, content: [{ type: "paragraph", content: [link] }] },

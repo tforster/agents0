@@ -54,7 +54,8 @@ agents0/
 │   ├── sweep-placeholders.js
 │   ├── format-lint-php.js   # PostToolUse: PHP format and lint -- see §5.3
 │   ├── format-lint-oxc.js   # PostToolUse: oxfmt and oxlint -- see §5.4
-│   └── completion-gate.js   # Stop: lint, typecheck and test -- see §5.5
+│   ├── completion-gate.js   # Stop: lint, typecheck and test -- see §5.5
+│   └── lib/project.js       # shared: findProject, gitRoot, exists
 ├── adr/                     # cross-project ADRs
 ├── docs/
 └── tests/
@@ -81,12 +82,12 @@ One hook per rule, not one for all, because Claude Code caps each hook's output 
 
 ### 5.1. Account Gate
 
-Not a rule: a global `UserPromptSubmit` hook, `hooks/account-gate.js`, refuses a prompt when the signed-in Claude account is not the one mapped to the `origin` owner of the repo the prompt is submitted in (D75). It is a hook because a session cannot change its own account and a prose rule cannot see which account it runs under; blocking the prompt is the one moment that can say `/logout`, `/login`. `SessionStart` was rejected because it can only warn, and a warning scrolls past.
+Not a rule: a global `UserPromptSubmit` hook, `hooks/account-gate.js`, warns, in one line, when the signed-in Claude account is not the one mapped to the `origin` owner of the repo the prompt is submitted in (D75). It is a hook because a session cannot change its own account and a prose rule cannot see which account it runs under; each prompt is the moment that can say `/logout`, `/login`. It warns rather than blocks so a deliberate cross-account session (editing agents0 while signed in to a client account) still works; `SessionStart` was rejected because its single warning scrolls past, where a per-prompt one does not.
 
 - **The map** is the `ClaudeAccounts` environment variable, a JSON object of owner to account email, exported from the user's shell profile. It is not in the repo because the repo is public, and not in `plugin.json` `userConfig` because object values are unverified there. Owner and email match case-insensitively
 - **The owner** is the first path segment of `git remote get-url origin`, in the scp, `https://` and `ssh://` forms, with no host special cases: an Azure DevOps SSH remote yields `v3`, which is not in the map, and passes
 - **The account** is `oauthAccount.emailAddress` in `$CLAUDE_CONFIG_DIR/.claude.json`, else `~/.claude.json`
-- **Passes silently** when it cannot tell: variable unset, no repo or `origin`, owner not in the map, no signed-in account. A set but malformed variable (not a JSON object of strings) blocks instead, naming the variable, because failing open would hide the typo
+- **Passes silently** when it cannot tell: variable unset, no repo or `origin`, owner not in the map, no signed-in account. A set but malformed variable (not a JSON object of strings) warns too, naming the variable, because failing silently would hide the typo
 
 [Set it up](../../README.md#41-account-gate).
 
@@ -112,16 +113,17 @@ Not a rule either: a `PostToolUse` hook on `Edit|Write`, `hooks/format-lint-php.
 A `PostToolUse` hook on `Edit|Write`, `hooks/format-lint-oxc.js`, runs `oxfmt` and then `oxlint` on the changed file only (D9, D10, D29). It replaces the instruction to run lint after every edit: a rule decays over a long session and a hook does not (D24).
 
 - **No extension list**: every file goes to both tools, and each decides what it supports. `oxfmt` answers "Expected at least one target file" and `oxlint` "No files found to lint" for a type they do not handle, or a path their config ignores; both are a silent no-op. A new `oxfmt` language arrives with an upgrade, not a hook change. As of `oxfmt` 0.73.0 that covers JS/TS, JSON, YAML, Markdown, CSS, HTML, Handlebars, Vue, TOML and GraphQL, but not SQL
-- **The project's own tools**: the binaries come from the nearest `node_modules/.bin` above the file, and run from that directory so its `.oxfmtrc.json` and `.oxlintrc.json` apply. A project without them is a silent no-op. Never `npx`, which would download a tool the project has not approved (D3)
+- **The project's own tools**: the binaries come from the git root's `node_modules/.bin` when it has them, so an npm workspace monorepo uses its root tools and config; otherwise from the nearest `node_modules/.bin` above the file. They run from that directory so its `.oxfmtrc.json` and `.oxlintrc.json` apply. A project without them is a silent no-op. Never `npx`, which would download a tool the project has not approved (D3)
 - **Feedback**: an `oxfmt` failure (usually a syntax error) or an `oxlint` error is a `decision: "block"` result, returned to Claude in the same turn. `oxlint` warnings are not. When `oxfmt` rewrites the file, Claude is told to re-read it, as in §5.3
 - **Markdown**: `oxfmt` does not wrap prose and keeps a callout's empty `>` line, so its output meets `rules/markdown.md`
 
 ### 5.5. Completion Gate
 
-A `Stop` hook, `hooks/completion-gate.js`, runs `npm run lint`, `npm run typecheck` and `npm run test` in the nearest directory at or above the session's that holds a `package.json` (where npm itself would run them), in that order, stopping at the first failure, and blocks the stop with its output (D29, D31). It replaces the rules that told the agent to run them: instruction decays over a long session and a hook does not (D24), so no rule, skill, agent or `CLAUDE.md` may say it any more, and a test holds that line.
+A `Stop` hook, `hooks/completion-gate.js`, runs `npm run lint`, `npm run typecheck` and `npm run test` in the project, in that order, stopping at the first failure, and blocks the stop with its output (D29, D31). It replaces the rules that told the agent to run them: instruction decays over a long session and a hook does not (D24), so no rule, skill, agent or `CLAUDE.md` may say it any more, and a test holds that line.
 
 - **When it runs**: only when `git status --porcelain` shows changes, so a question-only turn, or work already committed, costs no test run. Outside a git repo it always runs
-- **Which repos**: one with no `package.json` is not an npm project, and passes silently. One whose `package.json` does not parse, or lacks any of the three scripts, is blocked, naming the problem: the JS template gives every Dev0 project all three (D68), so a missing one is the thing to fix
+- **Which project**: the git root when it holds a `package.json`, because an npm workspace monorepo defines its completion scripts once, at the root, and a workspace's own `package.json` would otherwise shadow them. Otherwise the nearest directory at or above the session's that holds one, which covers a repo whose npm project sits in a subdirectory, and sessions outside git. §5.4 resolves its tools the same way, through `findProject` in `hooks/lib/project.js`
+- **Which repos**: one with no `package.json` is not an npm project, and passes silently. One whose `package.json` does not parse is blocked, naming the file. A missing script is skipped with a one-line warning naming it, not blocked: the JS template gives every Dev0 project all three (D68), but older projects predate it, and a gate that blocks every stop there gets switched off
 - **Two retries**: Claude Code sets `stop_hook_active` when a stop follows a block. The gate counts those in a per-session file in the temp directory: the first stop of a turn starts at one, the third consecutive failure lets the stop through with a `systemMessage` that the gate is red and the tail of its output. A pass, or the next user prompt, resets the count. Looping forever on a failure the agent cannot fix would burn the session instead of handing it to a human. Subagents share the session id, so the gate is on `Stop` only: a subagent's work is gated when its parent stops, and a `SubagentStop` entry would corrupt the parent's count
 - **Output**: the last 8,000 characters, where a test runner puts its failures and summary
 - **Timeout**: 600 seconds, for slow suites. A timed-out hook fails open

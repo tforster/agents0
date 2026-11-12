@@ -13,15 +13,15 @@ Clients and their sources live in `${XDG_CONFIG_HOME:-$HOME/.config}/agents0/ret
 
 ```json
 {
-  "default": "CPC",
+  "default": "ACME",
   "clients": {
-    "CPC": {
-      "name": "Canadian Pork Council",
-      "jira": { "site": "https://example.atlassian.net", "project": "CA", "board": 1 },
+    "ACME": {
+      "name": "Acme Corp",
+      "jira": { "site": "https://example.atlassian.net", "project": "ABC", "board": 1 },
       "paca": [],
       "github": ["Example-Org"],
-      "repos": ["~/dev/CPC"],
-      "retros": "~/dev/CPC/docs/retros",
+      "repos": ["~/dev/Acme"],
+      "retros": "~/dev/Acme/docs/retros",
       "cadence": { "anchor": "2026-10-15", "days": 14 }
     }
   }
@@ -42,7 +42,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/sprint.mjs BOARD [SPRINT]
 
 Without a board, count `cadence.days`-day sprints from `cadence.anchor` to the one the user names, or the last one ended.
 
-State the sprint in one line, e.g. `CPC Sprint 73 · Thu 2026-10-15 to Wed 2026-10-28 · goal: Embed cpe.web`.
+State the sprint in one line, e.g. `Acme Sprint 12 · Thu 2026-10-15 to Wed 2026-10-28 · goal: Ship the reporting export`.
 
 ## 3. Highlights
 
@@ -120,9 +120,9 @@ Where Microsoft 365 is connected, the client's meetings and threads in the range
 Write the retro to `RETROS/YYYY-MM-DD-sprint-N.md`, dated the sprint's last day, then show it in full. `RETROS` is the client's `retros`; create it with a `README.md` index on first use, and add each retro to the index. The retro follows the house Markdown rules; write it, then run the `markdown` skill's `number-sections.js` and `update-toc.js` on it:
 
 ```markdown
-# CPC Sprint 73 Retrospective <!-- omit in toc -->
+# Acme Sprint 12 Retrospective <!-- omit in toc -->
 
-Thu 2026-10-15 to Wed 2026-10-28 · Goal: Embed cpe.web · **Goal met / partly met / not met**
+Thu 2026-10-15 to Wed 2026-10-28 · Goal: Ship the reporting export · **Goal met / partly met / not met**
 
 ## Table of Contents <!-- omit in toc -->
 

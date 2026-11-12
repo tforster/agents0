@@ -52,7 +52,7 @@ const { JIRA_EMAIL, JIRA_API_TOKEN, JIRA_FIELD_STORY, JIRA_FIELD_AC } = process.
  * Read the nearest docs/agents/issue-tracker.md, walking up from a directory to the repo root.
  *
  * Deliberately a few regexes, not a parser: the file is prose written for humans, and the one sentence
- * every declaration needs is "Issues are tracked in **Jira**, project key `CA`, on `https://x.atlassian.net`."
+ * every declaration needs is "Issues are tracked in **Jira**, project key `ABC`, on `https://x.atlassian.net`."
  * Only that declaration is read, from "tracked in" to the end of its line (prose is never hard-wrapped),
  * so a migration note naming another backend, or a Confluence link earlier in the file, cannot win.
  *
@@ -250,7 +250,7 @@ async function whoami() {
 /**
  * Fetch and display a single Jira issue.
  *
- * @param {string} key - Issue key, e.g. CA-123.
+ * @param {string} key - Issue key, e.g. ABC-123.
  */
 async function getIssue(key) {
   const issue = await api("GET", `/issue/${key}`);
@@ -334,7 +334,7 @@ async function printParent(parentKey) {
  * to the agent.
  *
  * @param {object|null} description - ADF description of the issue or its parent.
- * @param {string} issueLabel - The issue's type and key, e.g. "Story CA-10".
+ * @param {string} issueLabel - The issue's type and key, e.g. "Story ABC-10".
  */
 function printBlueprint(description, issueLabel) {
   // URLs first, so the full link can be reported; then a bare repo path typed as plain text.

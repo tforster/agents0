@@ -2,8 +2,10 @@
 //
 // Key behaviours:
 //   - Runs only when the git working tree has changes; outside git it always runs
-//   - The project is the nearest package.json above the session's directory, as npm resolves it; none means
-//     not an npm project, and the gate passes
+//   - The project is the git root when it holds a package.json, so an npm workspace monorepo is gated by the
+//     root scripts even from inside a workspace; otherwise the nearest package.json above the session's
+//     directory. None means not an npm project, and the gate passes
+//   - A missing lint, typecheck or test script is skipped with a one-line warning, not a failure
 //   - Blocks with the first failing script's output; after two retries in one user turn the stop goes
 //     through with a red systemMessage instead
 //
@@ -11,10 +13,13 @@
 
 // System dependencies
 import { execFile } from "node:child_process";
-import { access, readFile, rm, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+
+// Local dependencies
+import { findProject } from "./lib/project.js";
 
 /**
  * What a failed execFile rejects with.
@@ -49,44 +54,16 @@ async function isCleanTree(cwd) {
 }
 
 /**
- * Finds the nearest directory at or above the session's that holds a package.json.
- *
- * @param {string} cwd - Session directory.
- * @returns {Promise<string | undefined>} The project directory; undefined when there is none, which is a
- *   dotfiles, PHP or docs repo rather than a broken npm project.
- */
-async function findProject(cwd) {
-  for (let directory = cwd; ; directory = path.dirname(directory)) {
-    const hasPackage = await access(path.join(directory, "package.json")).then(
-      () => true,
-      () => false
-    );
-    if (hasPackage) {
-      return directory;
-    }
-    if (directory === path.dirname(directory)) {
-      return;
-    }
-  }
-}
-
-/**
- * Checks that package.json parses and declares all three scripts. A missing one fails the gate rather than
- * being skipped (D68): the JS template gives every Dev0 project all three, so a missing one is the thing to fix.
+ * Reads package.json's scripts. A file that does not parse is a problem to fix, so it is reported, not thrown.
  *
  * @param {string} project - Project directory.
- * @returns {Promise<string | undefined>} What is wrong with package.json; undefined when it is usable.
+ * @returns {Promise<{ scripts?: Record<string, string>, problem?: string }>} The scripts, or what is wrong.
  */
-async function packageProblem(project) {
-  let scripts;
+async function loadScripts(project) {
   try {
-    scripts = JSON.parse(await readFile(path.join(project, "package.json"), "utf8")).scripts ?? {};
+    return { scripts: JSON.parse(await readFile(path.join(project, "package.json"), "utf8")).scripts ?? {} };
   } catch (error) {
-    return `package.json in ${project} cannot be read: ${/** @type {Error} */ (error).message}`;
-  }
-  const missing = scriptNames.filter((name) => !scripts[name]);
-  if (missing.length > 0) {
-    return `package.json has no ${missing.join(", ")} script; add ${missing.length > 1 ? "them" : "it"} so the completion gate can run`;
+    return { problem: `package.json in ${project} cannot be read: ${/** @type {Error} */ (error).message}` };
   }
 }
 
@@ -94,10 +71,11 @@ async function packageProblem(project) {
  * Runs the scripts in order and stops at the first that fails.
  *
  * @param {string} project - Project directory.
+ * @param {string[]} names - The scripts to run, in order.
  * @returns {Promise<string | undefined>} The failing command and the tail of its output; undefined when all pass.
  */
-async function firstFailingScript(project) {
-  for (const name of scriptNames) {
+async function firstFailingScript(project, names) {
+  for (const name of names) {
     try {
       await run("npm", ["run", name], { cwd: project, maxBuffer: 64 * 1024 * 1024 });
     } catch (error) {
@@ -134,11 +112,18 @@ async function handleEvent(event) {
   const attemptsFile = path.join(tmpdir(), `agents0-completion-gate-${event.session_id}`);
   // Nothing changed since the last commit means nothing new to verify: a question-only turn, or work already
   // committed, skips a full test run.
-  const project = (await isCleanTree(event.cwd)) ? undefined : await findProject(event.cwd);
-  const failure = project && ((await packageProblem(project)) ?? (await firstFailingScript(project)));
+  const project = (await isCleanTree(event.cwd)) ? undefined : await findProject(event.cwd, "package.json");
+  const { scripts = {}, problem } = project ? await loadScripts(project) : {};
+  // A missing script is skipped, not failed: older projects predate the JS template's three scripts (D68),
+  // and blocking every stop in them would make the gate something to switch off.
+  const present = scriptNames.filter((name) => scripts[name]);
+  const missing = scriptNames.filter((name) => !scripts[name]);
+  const failure = project && (problem ?? (await firstFailingScript(project, present)));
   if (!failure) {
     await rm(attemptsFile, { force: true });
-    return;
+    return project && missing.length > 0
+      ? { systemMessage: `Completion gate: package.json in ${project} has no ${missing.join(", ")} script; skipped` }
+      : undefined;
   }
   // stop_hook_active is false on the first stop of a turn, so each user prompt gets fresh retries; it is true
   // when Claude is stopping again after a block, which is the attempt being counted.

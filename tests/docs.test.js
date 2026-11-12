@@ -140,4 +140,15 @@ describe("root README", () => {
     assert.ok(words <= readmeWordLimit, `README prose is ${words} words; the limit is ${readmeWordLimit}`);
     assert.ok(readme.includes("(./docs/how-to/develop-agents0.md)"), "the README does not link the development how-to");
   });
+
+  it("AGEN-60 AC5: develop-agents0.md carries the hook-development flow, and developer-flow.md is gone", async () => {
+    await assert.rejects(access(path.join(repoRoot, "docs/how-to/developer-flow.md")), /ENOENT/);
+    const howTo = await readFile(path.join(repoRoot, "docs/how-to/develop-agents0.md"), "utf8");
+    for (const step of ["devops/run-hook.sh", "claude --plugin-dir .", "/reload-plugins", "disableAllHooks"]) {
+      assert.ok(howTo.includes(step), `develop-agents0.md does not cover ${step}`);
+    }
+    await access(path.join(repoRoot, "devops/run-hook.sh"));
+    const index = await readFile(path.join(repoRoot, "docs/how-to/README.md"), "utf8");
+    assert.ok(!index.includes("developer-flow"), "the how-to index still links developer-flow.md");
+  });
 });

@@ -107,11 +107,37 @@ describe("completion gate hook", () => {
     assert.strictEqual(await stop({ root, sessionId: randomUUID() }), undefined);
   });
 
-  it("AGEN-17 scope: a package.json missing lint, typecheck or test blocks, naming the scripts to add (D68)", async () => {
+  it("AGEN-60 AC2: a missing lint, typecheck or test script is skipped with a one-line warning naming it", async () => {
     const root = await makeRepo({ test: pass });
     const output = await stop({ root, sessionId: randomUUID() });
+    assert.strictEqual(output?.decision, undefined);
+    assert.match(output?.systemMessage, /has no lint, typecheck script; skipped/);
+    assert.doesNotMatch(output.systemMessage, /\n/);
+  });
+
+  it("AGEN-60 AC2: with a script missing, the scripts that exist still run and block on failure", async () => {
+    const root = await makeRepo({ test: fail });
+    const output = await stop({ root, sessionId: randomUUID() });
     assert.strictEqual(output?.decision, "block");
-    assert.match(output.reason, /package\.json has no lint, typecheck script/);
+    assert.match(output.reason, /npm run test failed/);
+  });
+
+  it("AGEN-60 AC3: in a workspace monorepo the git root's package.json gates, not the workspace's", async () => {
+    const root = await makeRepo({ lint: pass, typecheck: pass, test: fail });
+    const workspace = path.join(root, "packages", "app");
+    await mkdir(path.join(workspace, "src"), { recursive: true });
+    await writeScripts(workspace, { start: pass });
+    const output = await stop({ root: path.join(workspace, "src"), sessionId: randomUUID() });
+    assert.strictEqual(output?.decision, "block");
+    assert.match(output.reason, /npm run test failed/);
+  });
+
+  it("AGEN-60 AC3: a git root without package.json falls back to the nearest package.json above the session", async () => {
+    const root = await makeRepo(undefined);
+    const project = path.join(root, "web");
+    await mkdir(path.join(project, "src"), { recursive: true });
+    await writeScripts(project, { lint: pass, typecheck: pass, test: fail });
+    assert.strictEqual((await stop({ root: path.join(project, "src"), sessionId: randomUUID() }))?.decision, "block");
   });
 
   it("AGEN-17 scope: a clean working tree skips the gate, so a question-only turn costs no test run", async () => {

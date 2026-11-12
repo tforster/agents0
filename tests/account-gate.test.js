@@ -18,7 +18,7 @@ const run = promisify(execFile);
 const hookPath = path.resolve(import.meta.dirname, "..", "hooks", "account-gate.js");
 const personal = "you@personal.example";
 const work = "you@work.example";
-const accounts = JSON.stringify({ tforster: personal, "Canadian-Pork-Council": work });
+const accounts = JSON.stringify({ tforster: personal, "acme-org": work });
 
 /**
  * Creates a git repository in a temp directory, optionally with an origin remote.
@@ -75,14 +75,15 @@ describe("account gate hook", () => {
     );
   });
 
-  it("AGEN-22 AC2: a prompt in a tforster repo is refused while signed in as the CPC account", async () => {
+  it("AGEN-60 AC1: a prompt in a tforster repo gets a one-line warning, not a block, while signed in as the work account", async () => {
     const cwd = await makeRepo("git@github.com:tforster/agents0.git");
     const { stdout } = await runHook({ cwd, email: work, accountMap: accounts });
     const output = JSON.parse(stdout);
-    assert.equal(output.decision, "block");
-    assert.match(output.reason, new RegExp(personal));
-    assert.match(output.reason, /\/logout/);
-    assert.match(output.reason, /\/login/);
+    assert.equal(output.decision, undefined);
+    assert.match(output.systemMessage, new RegExp(personal));
+    assert.match(output.systemMessage, /\/logout/);
+    assert.match(output.systemMessage, /\/login/);
+    assert.doesNotMatch(output.systemMessage, /\n/);
   });
 
   const mismatches = [
@@ -92,15 +93,15 @@ describe("account gate hook", () => {
     ["HTTPS with a user", "https://tforster@github.com/tforster/agents0.git", work, personal],
     ["ssh:// URL", "ssh://git@github.com/tforster/agents0.git", work, personal],
     ["owner in another case", "git@github.com:TFORSTER/agents0.git", work, personal],
-    ["CPC repo, personal account", "git@github.com:Canadian-Pork-Council/site.git", personal, work],
+    ["client repo, personal account", "git@github.com:acme-org/site.git", personal, work],
   ];
   for (const [name, remote, signedIn, expected] of mismatches) {
-    it(`AGEN-22 AC1: ${name} is refused, naming ${expected}`, async () => {
+    it(`AGEN-60 AC1: ${name} warns, naming ${expected}`, async () => {
       const cwd = await makeRepo(remote);
       const { stdout } = await runHook({ cwd, email: signedIn, accountMap: accounts });
       const output = JSON.parse(stdout);
-      assert.equal(output.decision, "block");
-      assert.ok(output.reason.includes(expected), output.reason);
+      assert.equal(output.decision, undefined);
+      assert.ok(output.systemMessage.includes(expected), output.systemMessage);
     });
   }
 
@@ -147,14 +148,14 @@ describe("account gate hook", () => {
     ["an object with a non-string value", '{"tforster":1}', /JSON object/],
   ];
   for (const [name, accountMap, message] of badMaps) {
-    it(`AGEN-22 AC3: ClaudeAccounts that is ${name} blocks, naming the variable`, async () => {
+    it(`AGEN-60 AC1: ClaudeAccounts that is ${name} warns, naming the variable`, async () => {
       const cwd = await makeRepo("git@github.com:tforster/agents0.git");
       const { stdout, code } = await runHook({ cwd, email: work, accountMap });
       assert.equal(code, 0);
       const output = JSON.parse(stdout);
-      assert.equal(output.decision, "block");
-      assert.match(output.reason, /ClaudeAccounts/);
-      assert.match(output.reason, message);
+      assert.equal(output.decision, undefined);
+      assert.match(output.systemMessage, /ClaudeAccounts/);
+      assert.match(output.systemMessage, message);
     });
   }
 });

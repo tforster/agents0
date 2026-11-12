@@ -56,17 +56,17 @@ const report = {
   contents: {
     completedIssues: [
       {
-        key: "CA-1",
+        key: "ABC-1",
         summary: "Planned",
         typeName: "Story",
         statusName: "Done",
         currentEstimateStatistic: { statFieldValue: { value: 3 } },
       },
-      { key: "CA-2", summary: "Dropped", typeName: "Task", statusName: "Will not do" },
+      { key: "ABC-2", summary: "Dropped", typeName: "Task", statusName: "Will not do" },
     ],
-    issuesNotCompletedInCurrentSprint: [{ key: "CA-3", summary: "Carried", typeName: "Story", statusName: "To Do" }],
-    puntedIssues: [{ key: "CA-4", summary: "Removed", typeName: "Bug", statusName: "To Do" }],
-    issueKeysAddedDuringSprint: { "CA-2": true, "CA-4": true },
+    issuesNotCompletedInCurrentSprint: [{ key: "ABC-3", summary: "Carried", typeName: "Story", statusName: "To Do" }],
+    puntedIssues: [{ key: "ABC-4", summary: "Removed", typeName: "Bug", statusName: "To Do" }],
+    issueKeysAddedDuringSprint: { "ABC-2": true, "ABC-4": true },
   },
 };
 
@@ -107,7 +107,7 @@ describe("retro skill", () => {
     assert.ok(skill.indexOf("## 1. Client") < skill.indexOf("## 2. Sprint"), "the client is not settled first");
     const client = section("Client");
     assert.match(client, /AskUserQuestion/);
-    assert.match(client, /"default": "CPC"/);
+    assert.match(client, /"default": "ACME"/);
     assert.match(client, /`default` first/);
   });
 
@@ -158,9 +158,9 @@ describe("sprint.mjs", () => {
   it("AGEN-58 AC5: buckets issues as Jira's sprint report does and flags those added mid-sprint", () => {
     const { issues, counts } = JSON.parse(runSprint(["1", "73"]).stdout);
     const keys = (/** @type {{ key: string }[]} */ list) => list.map((issue) => issue.key);
-    assert.deepStrictEqual(keys(issues.completed), ["CA-1", "CA-2"]);
-    assert.deepStrictEqual(keys(issues.notCompleted), ["CA-3"]);
-    assert.deepStrictEqual(keys(issues.removed), ["CA-4"]);
+    assert.deepStrictEqual(keys(issues.completed), ["ABC-1", "ABC-2"]);
+    assert.deepStrictEqual(keys(issues.notCompleted), ["ABC-3"]);
+    assert.deepStrictEqual(keys(issues.removed), ["ABC-4"]);
     assert.strictEqual(issues.completed[0].points, 3);
     assert.strictEqual(issues.completed[0].addedDuringSprint, false);
     assert.strictEqual(issues.completed[1].addedDuringSprint, true);
