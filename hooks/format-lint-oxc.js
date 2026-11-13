@@ -8,9 +8,12 @@
 
 // System dependencies
 import { execFile } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+
+// Local dependencies
+import { exists, findProject } from "./lib/project.js";
 
 /**
  * What a failed execFile rejects with.
@@ -21,35 +24,16 @@ import { promisify } from "node:util";
 const run = promisify(execFile);
 
 /**
- * Reports whether a path exists.
- *
- * @param {string} target - Absolute path.
- * @returns {Promise<boolean>} Whether it exists.
- */
-async function exists(target) {
-  return await access(target).then(
-    () => true,
-    () => false
-  );
-}
-
-/**
- * Finds the nearest project above a file that has a tool installed in node_modules/.bin. Never npx: that
- * would download a tool the project has not approved (D3).
+ * Finds the project above a file that has a tool installed in node_modules/.bin: the git root when it has it,
+ * so a workspace monorepo uses the root's tools and config, else the nearest directory that does. Never npx:
+ * that would download a tool the project has not approved (D3).
  *
  * @param {string} filePath - Absolute path of the changed file.
  * @param {string} tool - Binary name.
  * @returns {Promise<string | undefined>} Absolute path of the project directory, or undefined when none has it.
  */
-async function findProject(filePath, tool) {
-  for (let directory = path.dirname(filePath); ; directory = path.dirname(directory)) {
-    if (await exists(path.join(directory, "node_modules", ".bin", tool))) {
-      return directory;
-    }
-    if (directory === path.dirname(directory)) {
-      return;
-    }
-  }
+async function findToolProject(filePath, tool) {
+  return await findProject(path.dirname(filePath), path.join("node_modules", ".bin", tool));
 }
 
 /**
@@ -60,7 +44,7 @@ async function findProject(filePath, tool) {
  *   rewrote the file.
  */
 async function format(filePath) {
-  const project = await findProject(filePath, "oxfmt");
+  const project = await findToolProject(filePath, "oxfmt");
   if (!project) {
     return { reformatted: false };
   }
@@ -85,7 +69,7 @@ async function format(filePath) {
  * @returns {Promise<string | undefined>} oxlint's report when it finds errors; undefined when clean or not linted.
  */
 async function lint(filePath) {
-  const project = await findProject(filePath, "oxlint");
+  const project = await findToolProject(filePath, "oxlint");
   if (!project) {
     return;
   }

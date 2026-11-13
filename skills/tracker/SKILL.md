@@ -9,10 +9,10 @@ One contract, one recipe per backend, no adapter library. Callers use the five o
 
 ## Resolve the backend
 
-Read the repo's `docs/agents/issue-tracker.md` (found by walking up from the current directory, stopping at the repo root). It must say, in prose on one line, which tracker the repo uses; only that line is read, for Jira: ``Issues are tracked in **Jira**, project key `CA`, on `https://example.atlassian.net`.``
+Read the repo's `docs/agents/issue-tracker.md` (found by walking up from the current directory, stopping at the repo root). It must say, in prose on one line, which tracker the repo uses; only that line is read, for Jira: ``Issues are tracked in **Jira**, project key `ABC`, on `https://example.atlassian.net`.``
 
 ```bash
-node ${CLAUDE_SKILL_DIR}/../jira/scripts/jira.mjs resolve    # {"backend":"jira","project":"CA","baseUrl":"https://...","file":"..."}
+node ${CLAUDE_SKILL_DIR}/../jira/scripts/jira.mjs resolve    # {"backend":"jira","project":"ABC","baseUrl":"https://...","file":"..."}
 ```
 
 - `backend: "jira"`: use the Jira recipe below.
@@ -38,11 +38,11 @@ The recipe is the `jira` skill's script. It is the one Jira client; there is no 
 | Operation    | Command                                                                              |
 | ------------ | ------------------------------------------------------------------------------------ |
 | `next`       | `J next [--label ready-for-agent]`                                                   |
-| `get`        | `J get CA-123`                                                                       |
-| `comment`    | `J comment add CA-123 "text"`                                                        |
-| `transition` | `J update CA-123 --status "In Progress"`                                             |
-| `create`     | `J create --type Story --summary "..." --ac "..." [--parent CA-1]`                   |
-| (create, follow-up) | `J set-parent CA-123 CA-1` to re-parent; `J link CA-10 CA-11` so CA-10 blocks CA-11 |
+| `get`        | `J get ABC-123`                                                                       |
+| `comment`    | `J comment add ABC-123 "text"`                                                        |
+| `transition` | `J update ABC-123 --status "In Progress"`                                             |
+| `create`     | `J create --type Story --summary "..." --ac "..." [--parent ABC-1]`                   |
+| (create, follow-up) | `J set-parent ABC-123 ABC-1` to re-parent; `J link ABC-10 ABC-11` so ABC-10 blocks ABC-11 |
 
 ### 1. next
 
@@ -50,7 +50,7 @@ Open sprint first, ordered by Rank ascending; if it has nothing, the backlog (no
 
 ### 2. get
 
-Prints the story, then its parent epic: type, key, summary and description. A subtask shows only its parent story's key and summary. When the story's own description or its parent's links to a repo blueprint (`docs/blueprints/<key>-<slug>.md`, as a link, a smart card, a typed URL or a bare path), it adds a `Blueprint:` line with that repo path, labelled with the issue it belongs to, e.g. `(Story CA-10)` or `(Epic CA-1)`; when both link one, both lines appear. Read each file: when a project keeps blueprints in the repo, that issue's description is only a summary and the file is the only copy of its decisions (Jira descriptions cap at 32,767 characters). The older `docs/epics/` folder is still recognised while projects migrate.
+Prints the story, then its parent epic: type, key, summary and description. A subtask shows only its parent story's key and summary. When the story's own description or its parent's links to a repo blueprint (`docs/blueprints/<key>-<slug>.md`, as a link, a smart card, a typed URL or a bare path), it adds a `Blueprint:` line with that repo path, labelled with the issue it belongs to, e.g. `(Story ABC-10)` or `(Epic ABC-1)`; when both link one, both lines appear. Read each file: when a project keeps blueprints in the repo, that issue's description is only a summary and the file is the only copy of its decisions (Jira descriptions cap at 32,767 characters). The older `docs/epics/` folder is still recognised while projects migrate.
 
 ### 3. create and links
 

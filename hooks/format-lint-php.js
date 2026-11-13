@@ -4,9 +4,12 @@
 
 // System dependencies
 import { execFile } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+
+// Local dependencies
+import { exists, gitRoot } from "./lib/project.js";
 
 /**
  * What a failed execFile rejects with.
@@ -72,12 +75,7 @@ async function formatWithRepoConfig(repoRoot, relativeFile) {
   // The same two names, in the same order, that php-cs-fixer looks for itself.
   for (const name of [".php-cs-fixer.php", ".php-cs-fixer.dist.php"]) {
     const config = path.join(repoRoot, name);
-    if (
-      !(await access(config).then(
-        () => true,
-        () => false
-      ))
-    ) {
+    if (!(await exists(config))) {
       continue;
     }
     const before = await readFile(path.join(repoRoot, relativeFile), "utf8");
@@ -109,10 +107,7 @@ async function handleEvent(event) {
     return;
   }
   // A PHP file outside any repo (a scratch file) has no config or declaration to honour: nothing to do.
-  const repoRoot = await run("git", ["rev-parse", "--show-toplevel"], { cwd: path.dirname(filePath) }).then(
-    ({ stdout }) => stdout.trim(),
-    () => undefined
-  );
+  const repoRoot = await gitRoot(path.dirname(filePath));
   if (!repoRoot) {
     return;
   }

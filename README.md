@@ -159,19 +159,19 @@ To change Agents0 itself, see [Develop Agents0](./docs/how-to/develop-agents0.md
 
 ### 4.1. Account gate
 
-If you use more than one Claude account, the account gate refuses a prompt when the signed-in account is not the one you chose for that repo's owner. It is off until you tell it which account belongs to which owner, with a `ClaudeAccounts` environment variable holding a JSON object of owner to account email. The owner is the first path segment of the repo's `origin` remote (`tforster` in `git@github.com:tforster/agents0.git` and in `https://github.com/tforster/agents0`), matched case-insensitively. Export it from your shell profile, with your own owners and emails:
+If you use more than one Claude account, the account gate warns on each prompt when the signed-in account is not the one you chose for that repo's owner. It is off until you tell it which account belongs to which owner, with a `ClaudeAccounts` environment variable holding a JSON object of owner to account email. The owner is the first path segment of the repo's `origin` remote (`tforster` in `git@github.com:tforster/agents0.git` and in `https://github.com/tforster/agents0`), matched case-insensitively. Export it from your shell profile, with your own owners and emails:
 
 ```bash
 export ClaudeAccounts='{"your-github-name":"you@personal.example","your-employer-org":"you@work.example"}'
 ```
 
-Restart Claude Code from a shell that has loaded the profile, or the variable is not there. With the wrong account signed in, your prompt is refused and Claude Code shows:
+Restart Claude Code from a shell that has loaded the profile, or the variable is not there. With the wrong account signed in, the prompt still runs and Claude Code shows:
 
 ```text
-The owner "your-github-name" uses you@personal.example, but Claude is signed in as you@work.example. Run /logout, then /login as you@personal.example.
+Account gate: The owner "your-github-name" uses you@personal.example, but Claude is signed in as you@work.example. Run /logout, then /login as you@personal.example.
 ```
 
-A session cannot change its own account, so `/logout` and `/login` are the fix. The gate passes silently when it cannot tell: the variable is unset, the directory is not a git repo or has no `origin`, the owner is not in the map, or no account is signed in. A variable that is not a JSON object of owner to email blocks every prompt with an error naming it, so a typo cannot switch the gate off unnoticed. The map lives in your environment because this repository is public.
+A session cannot change its own account, so `/logout` and `/login` are the fix. The gate passes silently when it cannot tell: the variable is unset, the directory is not a git repo or has no `origin`, the owner is not in the map, or no account is signed in. A variable that is not a JSON object of owner to email warns on every prompt, naming it, so a typo cannot switch the gate off unnoticed. The map lives in your environment because this repository is public.
 
 ## 5. Documentation
 

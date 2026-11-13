@@ -140,6 +140,34 @@ describe("oxc format and lint hook", () => {
     assert.match(output.reason, /oxfmt failed on .*src\/half\.js/);
   });
 
+  it("AGEN-60 AC3: in a workspace monorepo the git root's tools and config apply, not the workspace's", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "agents0-format-lint-oxc-"));
+    await run("git", ["init", "-q"], { cwd: root });
+    const workspace = path.join(root, "packages", "app");
+    // Both levels have the tools; only the root's config ignores the file, so a clean run proves the root won.
+    for (const directory of [root, workspace]) {
+      await mkdir(path.join(directory, "node_modules", ".bin"), { recursive: true });
+      for (const tool of ["oxfmt", "oxlint"]) {
+        await symlink(path.join(repoRoot, "node_modules", ".bin", tool), path.join(directory, "node_modules", ".bin", tool));
+      }
+    }
+    await writeFile(path.join(root, ".oxfmtrc.json"), JSON.stringify({ ignorePatterns: ["packages/app/generated/**"] }));
+    await writeFile(
+      path.join(root, ".oxlintrc.json"),
+      JSON.stringify({ rules: { "no-debugger": "error" }, ignorePatterns: ["packages/app/generated/**"] })
+    );
+    const filePath = path.join(workspace, "generated", "out.js");
+    await mkdir(path.dirname(filePath), { recursive: true });
+    const content = "debugger;if(x){}";
+    await writeFile(filePath, content);
+
+    const event = { hook_event_name: "PostToolUse", tool_name: "Write", cwd: workspace, tool_input: { file_path: filePath } };
+    const child = run("node", [hookPath], { cwd: workspace });
+    child.child.stdin?.end(JSON.stringify(event));
+    assert.strictEqual((await child).stdout, "");
+    assert.strictEqual(await readFile(filePath, "utf8"), content);
+  });
+
   it("AGEN-16 scope: leaves a file the project's oxfmt and oxlint configs ignore untouched", async () => {
     const content = "debugger;if(x){}";
     const { output, written } = await runHook({

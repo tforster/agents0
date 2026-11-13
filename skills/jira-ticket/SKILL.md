@@ -137,6 +137,6 @@ The agents0 completion gate checks the project's lint, typecheck and test script
 When the gate blocks:
 
 - a real failure: dispatch a fix to the builder that owns the code, as in section 9, re-merge and stop again. Never weaken, skip or delete a test to get green;
-- a missing script in `package.json`: the gate treats that as a project gap; report it to the user rather than adding one;
+- a missing script in `package.json`: the gate skips it with a one-line warning rather than blocking; record it for the hand-back as a project gap, rather than adding one;
 - a binary that is not installed (`command not found`, `not found`): do not install it or work around it. The gate lets the stop through after its retries; record the tool for the hand-back, and note that the gate stops at the first failure, so the later checks went unverified;
 - an environmental failure you cannot fix (sandbox, missing credentials): record the output for the hand-back; do not work around it.
