@@ -29,6 +29,21 @@ async function readReadme() {
   return await readFile(path.join(repoRoot, "README.md"), "utf8");
 }
 
+/**
+ * Extracts each Mermaid block's lines, trimmed, skipping blank lines.
+ *
+ * @param {string} content - Markdown content.
+ * @returns {string[][]} One array of lines per Mermaid block.
+ */
+function mermaidBlocks(content) {
+  return [...content.matchAll(/^```mermaid\n([\s\S]*?)^```$/gm)].map(([, body]) =>
+    body
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+  );
+}
+
 describe("toolkit documentation", () => {
   it("DEV0-66 AC2: DEV0.md is gone and current docs no longer link to it", async () => {
     await assert.rejects(access(path.join(repoRoot, "DEV0.md")), /ENOENT/);
@@ -112,18 +127,27 @@ describe("root README", () => {
     assert.ok(!readme.includes("prompt.md"), "the README mentions prompt.md");
   });
 
-  it("DEV0-68 AC4: the diagrams have one home, the README, and the scratch context map links to it", async () => {
+  it("DEV0-68 AC4: the context-map diagrams have one home, the README, and the scratch context map links to it", async () => {
     const entries = await readdir(repoRoot, { recursive: true, withFileTypes: true });
     const markdown = entries
       .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
       .map((entry) => path.relative(repoRoot, path.join(entry.parentPath, entry.name)))
       .filter((file) => !file.startsWith("node_modules") && !file.startsWith(".git"));
+    // Other docs may carry their own diagrams (Mermaid is the house format); what must not recur is a copy of the
+    // README's context-map diagrams. A block sharing half or more of a README diagram's lines counts as a copy,
+    // so a lightly edited duplicate is caught too.
+    const readmeDiagrams = mermaidBlocks(await readReadme());
     for (const file of markdown) {
       if (file === "README.md") {
         continue;
       }
-      const content = await readFile(path.join(repoRoot, file), "utf8");
-      assert.ok(!content.includes("```mermaid"), `${file} carries a second copy of a diagram`);
+      for (const block of mermaidBlocks(await readFile(path.join(repoRoot, file), "utf8"))) {
+        const lines = new Set(block);
+        for (const diagram of readmeDiagrams) {
+          const shared = diagram.filter((line) => lines.has(line)).length;
+          assert.ok(shared < diagram.length / 2, `${file} carries a copy of a README diagram`);
+        }
+      }
     }
 
     const contextMap = await readFile(path.join(repoRoot, "docs/scratch/2026-10-04-agent-context-map.md"), "utf8");
