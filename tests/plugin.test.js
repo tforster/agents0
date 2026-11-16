@@ -298,3 +298,17 @@ describe("javascript skill", () => {
     assert.doesNotMatch(hooks, /rules\/(javascript|testing)\.md/);
   });
 });
+
+describe("markdown skill", () => {
+  it("AGEN-12 AC1: rules/markdown.md is folded into the markdown skill, and only dev0, code-style and diataxis are injected", async () => {
+    await assert.rejects(access(path.join(repoRoot, "rules/markdown.md")), /ENOENT/);
+    const skill = await readFile(path.join(repoRoot, "skills/markdown/SKILL.md"), "utf8");
+    for (const constraint of ["British/Canadian English", "kebab-case", "trailing dot", "back-navigation link", "MD040"]) {
+      assert.ok(skill.includes(constraint), `the markdown skill lost the constraint: ${constraint}`);
+    }
+    // diataxis.md stays until the docs structure that replaces it is settled (architect, 2026-11-13).
+    const hooks = await readFile(path.join(repoRoot, "hooks/hooks.json"), "utf8");
+    const injected = new Set([...hooks.matchAll(/rules\/([a-z0-9-]+)\.md/g)].map(([, name]) => name));
+    assert.deepStrictEqual([...injected].sort(), ["code-style", "dev0", "diataxis"]);
+  });
+});

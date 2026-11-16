@@ -9,7 +9,7 @@
 All documentation in `docs/` follows the [Diátaxis framework](https://diataxis.fr/).
 
 > [!NOTE]
-> Markdown formatting rules (code fences, headings, callouts, British English, back navigation, anti-duplication, etc.) are defined in `rules/markdown.md`. This file covers Diátaxis categorisation and document structure only.
+> Markdown formatting rules (code fences, headings, callouts, British English, back navigation, anti-duplication, etc.) are defined in the `markdown` skill. This file covers Diátaxis categorisation and document structure only.
 
 ## 1. Four Categories
 

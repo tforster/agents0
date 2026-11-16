@@ -1,26 +1,46 @@
 ---
 name: markdown
-description: Author or restructure a Markdown document to the house standard, and regenerate its Table of Contents and section numbers with the bundled scripts. Use when creating a new .md file, adding or reordering sections in an existing one, or when a document's ToC or section numbers have gone stale. Do not hand-calculate section numbers or anchor slugs — run the scripts.
+description: House rules for Markdown, and the bundled scripts that regenerate a Table of Contents and section numbers. Use when writing or editing any .md file, creating a new one, adding or reordering sections, or when a document's ToC or section numbers have gone stale. Do not hand-calculate section numbers or anchor slugs — run the scripts.
 license: MIT
 metadata:
   author: tforster
-  version: "1.0"
+  version: "2.0"
 ---
 
 # Markdown Authoring Skill <!-- omit in toc -->
 
-The standing constraints live in `rules/markdown.md` and always apply. This skill covers the mechanics: document structure, the regeneration scripts, and the reference tables.
+The constraints every Markdown file meets, and the mechanics for meeting them: document structure, the regeneration scripts and the reference tables.
 
 ## Table of Contents <!-- omit in toc -->
 
-- [1. Regenerating the ToC and Section Numbers](#1-regenerating-the-toc-and-section-numbers)
-- [2. Document Skeleton](#2-document-skeleton)
-- [3. Code Fence Languages](#3-code-fence-languages)
-- [4. Callouts and Tables](#4-callouts-and-tables)
-- [5. Anti-Duplication](#5-anti-duplication)
-- [6. Verify](#6-verify)
+- [1. Constraints](#1-constraints)
+- [2. Regenerating the ToC and Section Numbers](#2-regenerating-the-toc-and-section-numbers)
+- [3. Document Skeleton](#3-document-skeleton)
+- [4. Code Fence Languages](#4-code-fence-languages)
+- [5. Callouts and Tables](#5-callouts-and-tables)
+- [6. Anti-Duplication](#6-anti-duplication)
+- [7. Verify](#7-verify)
 
-## 1. Regenerating the ToC and Section Numbers
+## 1. Constraints
+
+These hold for every Markdown file, always.
+
+- **Language**: British/Canadian English spelling -- organise, colour, behaviour, centre, optimise, analyse.
+- **File names**: kebab-case -- `database-setup.md`, `how-to-deploy.md`.
+- **Title**: one `#` title per document, carrying `<!-- omit in toc -->`.
+- **Sections**: `##` for sections, `###` for subsections, numbered `## 1. Section`, `### 1.1. Subsection`, `#### 1.1.1. Sub-subsection`. Every number carries a trailing dot. The title and the `## Table of Contents` heading are not numbered. Never hand-calculate numbers or anchors; run the scripts in section 2.
+- **Back-navigation**: every document ends with a back-navigation link, e.g. `[← Back to Documentation Home](../README.md)`, and each `docs/` category folder's `README.md` indexes its documents; update it whenever a document is added or removed.
+- **Code fences**: every fenced block names a language (section 4), never a bare fence.
+- **Spacing**: blank lines around headings, fenced code blocks and lists.
+- **Dividers**: no `---` section dividers; use headings.
+- **Prose**: never hard-wrapped. Wrapping is the renderer's job, not the file's.
+- **Callouts**: an empty `>` line between the marker and the text (section 5).
+- **Diagrams**: Mermaid, in the Markdown. C4 for architecture; sequence, flow or state diagrams where they say it better.
+- **Duplication**: none; link to the canonical source (section 6).
+
+These match markdownlint MD022 (headings surrounded by blank lines), MD025 (one top-level heading), MD031 (fences surrounded by blank lines), MD032 (lists surrounded by blank lines) and MD040 (fences have a language).
+
+## 2. Regenerating the ToC and Section Numbers
 
 **Never work these out by hand.** Renumbering sections and recomputing anchor slugs is deterministic, and doing it in your head is slow and error-prone. Two scripts do it:
 
@@ -55,7 +75,7 @@ Both skip headings inside fenced code blocks, and both skip any heading carrying
 
 `update-toc.js` exits non-zero and reports `skipped` if the document has no `## Table of Contents <!-- omit in toc -->` heading. Add the heading, then re-run — short documents without a ToC simply do not need this script.
 
-## 2. Document Skeleton
+## 3. Document Skeleton
 
 Start every document from this shape:
 
@@ -83,9 +103,7 @@ Write the headings and content first, leave the ToC list empty, then run the two
 
 Both the title and the `## Table of Contents` heading carry `<!-- omit in toc -->`: the title because it is the document, not a section of it; the ToC because it is navigation, not content.
 
-For documents under `docs/`, the Diátaxis category also determines the template and folder — see the `diataxis-documentation` skill.
-
-## 3. Code Fence Languages
+## 4. Code Fence Languages
 
 Every fence takes a language identifier. When in doubt use `text` rather than leaving it bare.
 
@@ -103,7 +121,7 @@ Every fence takes a language identifier. When in doubt use `text` rather than le
 | Markdown content | `markdown` or `md` |
 | Plain text, prompts, pseudo-code | `text` |
 
-## 4. Callouts and Tables
+## 5. Callouts and Tables
 
 Use GitHub Flavoured callouts for anything that interrupts the reader. Put an empty `>` line between the marker and the text:
 
@@ -129,7 +147,7 @@ The empty line makes the marker and the text separate paragraphs. Without it the
 
 Tables declare column alignment in the delimiter row — `:---` left, `:---:` centre, `---:` right.
 
-## 5. Anti-Duplication
+## 6. Anti-Duplication
 
 Never repeat a fact across documents. Pick the canonical location and link to it from everywhere else; duplicated content drifts and then contradicts itself.
 
@@ -159,7 +177,7 @@ See [Connection String Format](../reference/oracle-guide.md#3-connection-string-
 >
 > Cross-document anchor links embed the section number. Renumbering a document invalidates inbound links to it, and the scripts cannot detect that. After renumbering, grep for links to the file you changed.
 
-## 6. Verify
+## 7. Verify
 
 - [ ] `number-sections.js` then `update-toc.js` both run, both report `unchanged` on a second pass
 - [ ] Title and ToC heading both carry `<!-- omit in toc -->`
