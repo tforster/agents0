@@ -47,7 +47,7 @@ The diagrams below use these terms. Where Claude Code already defines one, the l
 
 ### 3.1. Always loaded
 
-What is in an agent's context before it reads your first prompt, and in what order? Claude Code loads its baseline, your CLAUDE.md files, auto memory and MCP tool names; Agents0 adds its skill descriptions and, through hooks, its rules. A subagent never sees SessionStart output, so each rule is injected by a SubagentStart hook as well. The six rules cost about 4,300 tokens in every agent.
+What is in an agent's context before it reads your first prompt, and in what order? Claude Code loads its baseline, your CLAUDE.md files, auto memory and MCP tool names; Agents0 adds its skill descriptions and, through hooks, its rules. A subagent never sees SessionStart output, so each rule is injected by a SubagentStart hook as well. The four rules cost about 2,500 tokens in every agent.
 
 ```mermaid
 flowchart TD
@@ -60,7 +60,7 @@ flowchart TD
   rootMd --> pointers["Skill and agent descriptions<br/>agents0 plugin and pinned third-party plugins"]:::exists
   pointers --> mcp["MCP tool names"]:::exists
   mcp --> subagent{"Started by<br/>the Agent tool?"}
-  subagent -- no --> sessionRules["Rules, one SessionStart hook each<br/>dev0, code-style, javascript,<br/>testing, markdown, diataxis"]:::exists
+  subagent -- no --> sessionRules["Rules, one SessionStart hook each<br/>dev0, code-style,<br/>markdown, diataxis"]:::exists
   subagent -- yes --> subagentRules["Same rules, one SubagentStart hook each"]:::exists
   sessionRules --> ready(["Ready for the first prompt"])
   subagentRules --> ready

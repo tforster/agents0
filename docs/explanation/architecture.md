@@ -78,7 +78,7 @@ Plugins cannot carry rules and have no install hook. So `hooks/hooks.json` gives
 - **SessionStart**, matched on `startup|clear|compact`, for the main session and `claude -p` workers. `resume` is left out: a resumed session is expected to carry the rules in its transcript already
 - **SubagentStart**, matched on `*`, for subagents started with the Agent tool, which never see SessionStart context
 
-One hook per rule, not one for all, because Claude Code caps each hook's output at 10,000 characters and replaces anything longer with a file path and a 2,000-character preview. All six rules together are about 17,000 characters. A test fails when any rule reaches the cap or lacks an entry under either event.
+One hook per rule, not one for all, because Claude Code caps each hook's output at 10,000 characters and replaces anything longer with a file path and a 2,000-character preview. The rules together were about 17,000 characters when there were six, and are about 10,000 with four. A test fails when any rule reaches the cap or lacks an entry under either event.
 
 ### 5.1. Account Gate
 

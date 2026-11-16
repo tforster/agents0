@@ -4,8 +4,8 @@
 // rules/ its own entry under both events, each running this script. SessionStart covers the main
 // session and `claude -p` workers; SubagentStart covers subagents started with the Agent tool, which
 // never see SessionStart context. One hook per rule, not one for all: hook context over 10,000
-// characters is replaced by a file path and a 2,000-character preview, and all six rules together
-// are about 17,000 (docs/explanation/plugin-pinning-spike.md section 3).
+// characters is replaced by a file path and a 2,000-character preview, and the rules together have
+// exceeded that (17,000 with six rules; docs/explanation/plugin-pinning-spike.md section 3).
 //
 // Output is the JSON form, hookSpecificOutput.additionalContext, for both events: SubagentStart
 // documents only that form, and SessionStart accepts it too, so one shape serves both.
