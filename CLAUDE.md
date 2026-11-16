@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Agents0 is the toolkit that delivers the [Dev0](https://github.com/tforster/dev0) philosophy through Claude Code: a personal, single-harness (Claude-only) repo whose root is both the `agents0` Claude Code marketplace and the `agents0` plugin. Agents0 progressively enhances Dev0; Dev0 never depends on Agents0, so nothing in the dev0 repo may assume this toolkit is installed. Scope test for any addition: does it exist only to serve the Dev0 workflow? **In:** agentic traits (skills, agents, rules, hooks, ADRs), worktree shell functions, project templates. **Out, to the dotfiles repo:** general shell and machine setup (prompt, aliases, PATH, editor). **Out, to dev0:** the philosophy itself. Favour "simple and good enough for one person" over generality in any change here.
 
-Read `docs/explanation/architecture.md` first for any non-trivial change; `docs/scratch/2026-10-18-plugin-pinning-spike.md` has the evidence behind the plugin design.
+Read `docs/explanation/architecture.md` first for any non-trivial change; `docs/explanation/plugin-pinning-spike.md` has the evidence behind the plugin design.
 
 ## Commands
 
