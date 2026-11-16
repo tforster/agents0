@@ -279,3 +279,22 @@ describe("Agents0 marketplace and plugin", () => {
     }
   });
 });
+
+describe("javascript skill", () => {
+  it("AGEN-11 AC1: the skill description triggers on JavaScript editing and on test writing", async () => {
+    const skill = await readFile(path.join(repoRoot, "skills/javascript/SKILL.md"), "utf8");
+    const description = skill.match(/^description: (.+)$/m)?.[1] ?? "";
+    assert.match(description, /\.js\b/, "the description does not name .js files");
+    assert.match(description, /\btests?\b/, "the description does not mention tests");
+    assert.match(description, /node:test/, "the description does not name the test runner");
+    assert.match(skill, /^10\. \*\*Run independent awaits/m, "code rule 10 lost its number");
+  });
+
+  it("AGEN-11 AC2: rules/javascript.md and rules/testing.md are gone and nothing injects them", async () => {
+    for (const file of ["rules/javascript.md", "rules/testing.md"]) {
+      await assert.rejects(access(path.join(repoRoot, file)), /ENOENT/);
+    }
+    const hooks = await readFile(path.join(repoRoot, "hooks/hooks.json"), "utf8");
+    assert.doesNotMatch(hooks, /rules\/(javascript|testing)\.md/);
+  });
+});
