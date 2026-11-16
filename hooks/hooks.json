@@ -74,11 +74,6 @@
             "type": "command",
             "command": "node",
             "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SessionStart", "${CLAUDE_PLUGIN_ROOT}/rules/diataxis.md"]
-          },
-          {
-            "type": "command",
-            "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SessionStart", "${CLAUDE_PLUGIN_ROOT}/rules/markdown.md"]
           }
         ]
       }
@@ -101,11 +96,6 @@
             "type": "command",
             "command": "node",
             "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SubagentStart", "${CLAUDE_PLUGIN_ROOT}/rules/diataxis.md"]
-          },
-          {
-            "type": "command",
-            "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/inject-rule.js", "SubagentStart", "${CLAUDE_PLUGIN_ROOT}/rules/markdown.md"]
           }
         ]
       }

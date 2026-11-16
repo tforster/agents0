@@ -143,7 +143,7 @@ Why things are the way they are.
 
 ## 3. Apply Formatting Rules
 
-Follow all rules in `rules/markdown.md`, and use the `markdown` skill's scripts to generate the ToC and section numbers. Key reminders for documentation:
+Follow the `markdown` skill's constraints, and use its scripts to generate the ToC and section numbers. Key reminders for documentation:
 
 - British/Canadian English: organise, colour, behaviour, centre, optimise
 - All code fences must specify a language (`bash`, `javascript`, `json`, `text`, etc.)

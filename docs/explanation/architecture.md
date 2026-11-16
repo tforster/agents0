@@ -78,7 +78,7 @@ Plugins cannot carry rules and have no install hook. So `hooks/hooks.json` gives
 - **SessionStart**, matched on `startup|clear|compact`, for the main session and `claude -p` workers. `resume` is left out: a resumed session is expected to carry the rules in its transcript already
 - **SubagentStart**, matched on `*`, for subagents started with the Agent tool, which never see SessionStart context
 
-One hook per rule, not one for all, because Claude Code caps each hook's output at 10,000 characters and replaces anything longer with a file path and a 2,000-character preview. The rules together were about 17,000 characters when there were six, and are about 10,000 with four. A test fails when any rule reaches the cap or lacks an entry under either event.
+One hook per rule, not one for all, because Claude Code caps each hook's output at 10,000 characters and replaces anything longer with a file path and a 2,000-character preview. The rules together were about 17,000 characters when there were six, and are about 7,300 with three. A test fails when any rule reaches the cap or lacks an entry under either event.
 
 ### 5.1. Account Gate
 
@@ -115,7 +115,7 @@ A `PostToolUse` hook on `Edit|Write`, `hooks/format-lint-oxc.js`, runs `oxfmt` a
 - **No extension list**: every file goes to both tools, and each decides what it supports. `oxfmt` answers "Expected at least one target file" and `oxlint` "No files found to lint" for a type they do not handle, or a path their config ignores; both are a silent no-op. A new `oxfmt` language arrives with an upgrade, not a hook change. As of `oxfmt` 0.73.0 that covers JS/TS, JSON, YAML, Markdown, CSS, HTML, Handlebars, Vue, TOML and GraphQL, but not SQL
 - **The project's own tools**: the binaries come from the git root's `node_modules/.bin` when it has them, so an npm workspace monorepo uses its root tools and config; otherwise from the nearest `node_modules/.bin` above the file. They run from that directory so its `.oxfmtrc.json` and `.oxlintrc.json` apply. A project without them is a silent no-op. Never `npx`, which would download a tool the project has not approved (D3)
 - **Feedback**: an `oxfmt` failure (usually a syntax error) or an `oxlint` error is a `decision: "block"` result, returned to Claude in the same turn. `oxlint` warnings are not. When `oxfmt` rewrites the file, Claude is told to re-read it, as in §5.3
-- **Markdown**: `oxfmt` does not wrap prose and keeps a callout's empty `>` line, so its output meets `rules/markdown.md`
+- **Markdown**: `oxfmt` does not wrap prose and keeps a callout's empty `>` line, so its output meets the `markdown` skill's constraints
 
 ### 5.5. Completion Gate
 
