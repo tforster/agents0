@@ -14,3 +14,5 @@ Documentation for Agents0, the toolkit that delivers [Dev0](https://github.com/t
 | [How-To Guides](./how-to/README.md)    | How do I accomplish X?       |
 | [Reference](./reference/README.md)     | What are the specs?          |
 | [Explanation](./explanation/README.md) | Why does this work this way? |
+
+[Blueprints](./blueprints/README.md) sit outside the four categories: each holds the decisions for one epic or story while it is built.
