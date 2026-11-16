@@ -87,7 +87,7 @@ flowchart TD
   language -- shell --> shellSkill["agents0:shell skill"]:::exists
   language -- "HTML, CSS, Handlebars" --> webSkill["agents0:web-ui skill"]:::exists
   language -- Markdown --> mdSkill["agents0:markdown skill"]:::exists
-  language -- PHP --> phpSkill["php skill"]:::planned
+  language -- PHP --> phpSkill["agents0:php skill"]:::exists
 
   choice -- yes --> adrIndex["ADR file names<br/>listed by the dev0 rule"]:::exists
   adrIndex --> adr["The one ADR that applies<br/>agents0 adr/, later the project's docs/adr/"]:::exists
