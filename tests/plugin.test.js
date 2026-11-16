@@ -312,3 +312,14 @@ describe("markdown skill", () => {
     assert.deepStrictEqual([...injected].sort(), ["code-style", "dev0", "diataxis"]);
   });
 });
+
+describe("php skill", () => {
+  it("AGEN-13 AC1: the php skill carries no client identifiers or repo-specific values", async () => {
+    const skill = await readFile(path.join(repoRoot, "skills/php/SKILL.md"), "utf8");
+    // The production version and container belong to the repo; the skill points at where they live.
+    assert.ok(skill.includes("config.platform.php"), "the skill does not say where the production version lives");
+    assert.doesNotMatch(skill, /\b[5-8]\.\d+\b/, "the skill hard-codes a PHP version");
+    assert.doesNotMatch(skill, /\b[a-z]+[.-]web\b|(?<!PSR)-\d+\b/i, "the skill names a client repo or container");
+    assert.match(skill, /^- \*\*Legacy code\*\*/m, "the skill lost the directory split");
+  });
+});
