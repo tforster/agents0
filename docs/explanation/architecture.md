@@ -34,7 +34,7 @@ Agents0 is the toolkit the Dev0 workflow is delivered through. [Dev0](https://gi
 
 It is still a single-author, single-harness (Claude) tool, and every design choice below favours "simple and good enough for one person" over generality.
 
-The repo began as `capabilities`, explicit scaffolding for [trAIt](https://github.com/tforster/trait) -- a separate, more ambitious proposal for a distributed-wiki model of AI agent files, multi-author and multi-harness. It was renamed `dev0` when its scope grew from syncing `~/.claude` to delivering Dev0, and renamed Agents0 when the philosophy moved out. Until DEV0-67 it shipped its own CLI, which symlinked `install/{skills,agents,rules}` into `~/.claude/`; Claude Code plugins replaced it (`docs/scratch/2026-10-18-plugin-pinning-spike.md`).
+The repo began as `capabilities`, explicit scaffolding for [trAIt](https://github.com/tforster/trait) -- a separate, more ambitious proposal for a distributed-wiki model of AI agent files, multi-author and multi-harness. It was renamed `dev0` when its scope grew from syncing `~/.claude` to delivering Dev0, and renamed Agents0 when the philosophy moved out. Until DEV0-67 it shipped its own CLI, which symlinked `install/{skills,agents,rules}` into `~/.claude/`; Claude Code plugins replaced it (`docs/explanation/plugin-pinning-spike.md`).
 
 ## 3. Repository Layout
 

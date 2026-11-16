@@ -1,6 +1,6 @@
 # Agent Context Map <!-- omit in toc -->
 
-The context map diagrams live in the root README, [How Agents0 Reaches an Agent](../../README.md#3-how-agents0-reaches-an-agent), since DEV0-68; edit them there. The README is written for a visitor with none of our context, so it leaves out the story keys and decision IDs. This note keeps them. Decision and assumption IDs refer to `2026-09-11-dev0-framework.md`.
+The context map diagrams live in the root README, [How Agents0 Reaches an Agent](../../README.md#3-how-agents0-reaches-an-agent), since DEV0-68; edit them there. The README is written for a visitor with none of our context, so it leaves out the story keys and decision IDs. This note keeps them. Decision and assumption IDs refer to [the Dev0 framework doc](../explanation/dev0-framework.md).
 
 ## Table of Contents <!-- omit in toc -->
 

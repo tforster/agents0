@@ -84,6 +84,29 @@ describe("toolkit documentation", () => {
       });
     }
   });
+  it("AGEN-9 AC1: the framework doc and the plugin pinning spike live in docs/explanation/ and are indexed there", async () => {
+    const index = await readFile(path.join(repoRoot, "docs/explanation/README.md"), "utf8");
+    for (const file of ["dev0-framework.md", "plugin-pinning-spike.md"]) {
+      await access(path.join(repoRoot, "docs/explanation", file));
+      assert.ok(index.includes(`(./${file})`), `docs/explanation/README.md does not index ${file}`);
+    }
+  });
+
+  it("AGEN-9 AC2: no file links to the old scratch paths", async () => {
+    const entries = await readdir(repoRoot, { recursive: true, withFileTypes: true });
+    const files = entries
+      .filter((entry) => entry.isFile() && /\.(md|js|json)$/.test(entry.name))
+      .map((entry) => path.relative(repoRoot, path.join(entry.parentPath, entry.name)))
+      .filter((file) => !file.startsWith("node_modules") && !file.startsWith(".git") && !file.startsWith(".jj"));
+    // Built from parts so this test file does not match itself.
+    const oldNames = ["2026-09-11-dev0-framework", "2026-10-18-plugin-pinning-spike"].map((name) => `${name}.md`);
+    for (const file of files) {
+      const content = await readFile(path.join(repoRoot, file), "utf8");
+      for (const oldName of oldNames) {
+        assert.ok(!content.includes(oldName), `${file} links to the old path ${oldName}`);
+      }
+    }
+  });
 });
 
 describe("root README", () => {

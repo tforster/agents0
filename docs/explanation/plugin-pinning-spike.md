@@ -14,13 +14,13 @@ DEV0-67's blocking question: does moving a Claude Code plugin's pinned `sha` rei
 
 **No.** With `version` unchanged, `claude plugin update` reports "already at the latest version" and keeps the old commit. `plugins/installed_plugins.json` does record the installed commit as `gitCommitSha`, but nothing compares it with the pin. The cache is keyed by version (`cache/<marketplace>/<plugin>/<version>/`), so a new commit at the same version has nowhere new to go.
 
-| Attempt                                                            | Result                                                         |
-| :----------------------------------------------------------------- | :------------------------------------------------------------- |
-| Move `sha`, `marketplace update`, `plugin update`                  | No-op: "already at the latest version (1.0.0)"; old content    |
-| Same, with `version: "1.0.0+<sha>"` on the marketplace entry       | No-op: `plugin.json` `version` wins                            |
-| Same, with `strict: false` and an entry `version`                  | No-op                                                          |
-| `plugin uninstall` then `plugin install`                           | Works: new commit installed, `gitCommitSha` updated            |
-| Plugin whose `plugin.json` has **no** `version`                    | Works: cache keyed by 12-character SHA; `update` moves A to B  |
+| Attempt                                                      | Result                                                        |
+| :----------------------------------------------------------- | :------------------------------------------------------------ |
+| Move `sha`, `marketplace update`, `plugin update`            | No-op: "already at the latest version (1.0.0)"; old content   |
+| Same, with `version: "1.0.0+<sha>"` on the marketplace entry | No-op: `plugin.json` `version` wins                           |
+| Same, with `strict: false` and an entry `version`            | No-op                                                         |
+| `plugin uninstall` then `plugin install`                     | Works: new commit installed, `gitCommitSha` updated           |
+| Plugin whose `plugin.json` has **no** `version`              | Works: cache keyed by 12-character SHA; `update` moves A to B |
 
 Third-party sources today: `mattpocock/skills` sets `version` 1.3.1 and `cloudflare/skills` sets 1.0.2, so the no-op applies to both. `anthropics/skills` has no root `plugin.json`, so a single-skill `git-subdir` pin is keyed by SHA and updates normally.
 
@@ -34,12 +34,12 @@ Third-party sources today: `mattpocock/skills` sets `version` 1.3.1 and `cloudfl
 
 Asked after the first round: what if Agents0 itself installs with `claude plugin install`? Plugins cannot carry rules, and the docs list no install, update or enable hook (https://code.claude.com/docs/en/plugins/manifest-reference). So three checks, the first using `claude -p --plugin-dir`, which loads a plugin for one session and installs nothing.
 
-| Check                                                                     | Result                                                                                                                                                       |
-| :------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SessionStart hook injecting all six rules in one output (16.9 KB)         | Fails. Output over 10,000 characters is saved to a file; the session sees the path and the first 2 KB                                                        |
-| One SessionStart hook per rule (largest 6.1 KB)                           | Works. All six rules arrive intact, each in its own context block                                                                                           |
-| SessionStart hook that writes a rule file if missing                      | Works one session late. The file is written in session 1 but not loaded until session 2, because rules are read at launch                                     |
-| Version-less local plugin (`"source": "./"` in a git repo)                | Works. Cache keyed by commit; `plugin update` picks up each commit, not uncommitted edits                                                                   |
+| Check                                                                         | Result                                                                                                                                                                                                                                                                                                 |
+| :---------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SessionStart hook injecting all six rules in one output (16.9 KB)             | Fails. Output over 10,000 characters is saved to a file; the session sees the path and the first 2 KB                                                                                                                                                                                                  |
+| One SessionStart hook per rule (largest 6.1 KB)                               | Works. All six rules arrive intact, each in its own context block                                                                                                                                                                                                                                      |
+| SessionStart hook that writes a rule file if missing                          | Works one session late. The file is written in session 1 but not loaded until session 2, because rules are read at launch                                                                                                                                                                              |
+| Version-less local plugin (`"source": "./"` in a git repo)                    | Works. Cache keyed by commit; `plugin update` picks up each commit, not uncommitted edits                                                                                                                                                                                                              |
 | GitHub marketplace declared in settings (`claude -p --settings`, real config) | Works, with two conditions. The settings key must equal the marketplace's own `name` (`anthropic-agent-skills`); otherwise the marketplace is cloned but no plugin installs. The plugin installs during the first session but its skills appear from the second. The CLI alone ignores the declaration |
 
 No rule uses `paths:` today, so every rule already loads at launch: about 17,300 characters, roughly 4,300 tokens. Injecting them by hook costs nothing extra over today.
@@ -68,4 +68,4 @@ claude plugin update probe@spikemkt           # "already at the latest version";
 claude plugin uninstall probe@spikemkt && claude plugin install probe@spikemkt   # B
 ```
 
-[← Back to Documentation Home](../README.md)
+[← Back to Explanation](./README.md)
