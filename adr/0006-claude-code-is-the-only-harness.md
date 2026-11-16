@@ -1,6 +1,6 @@
 # Claude Code is the only supported harness <!-- omit in toc -->
 
-Dev0 is built on Claude Code mechanisms: the `CLAUDE.md` cascade, where the directory tree is the information hierarchy and depth decides when context loads; hooks, which enforce what instruction cannot; and skills, agents and rules installed into `~/.claude/`. Supporting other models or harnesses means giving those up or rebuilding them for each, so the framework is deliberately Claude-dependent, and other harnesses are expected to perform worse.
+Dev0 is built on Claude Code mechanisms: the `CLAUDE.md` cascade, where the directory tree is the information hierarchy and depth decides when context loads; hooks, which enforce what instruction cannot; and skills, agents and injected rules, delivered as a Claude Code plugin. Supporting other models or harnesses means giving those up or rebuilding them for each, so the framework is deliberately Claude-dependent, and other harnesses are expected to perform worse.
 
 ## 1. Considered Options
 

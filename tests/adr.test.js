@@ -57,4 +57,12 @@ describe("cross-project ADRs", () => {
       );
     }
   });
+
+  it("AGEN-10 AC1: every ADR states what was rejected and is indexed in adr/README.md", async () => {
+    const index = await readFile(path.join(adrDir, "README.md"), "utf8");
+    for (const { name, content } of await readAdrs()) {
+      assert.match(content, /-- rejected\b/, `${name} states nothing as rejected`);
+      assert.ok(index.includes(`(./${name})`), `adr/README.md does not index ${name}`);
+    }
+  });
 });
