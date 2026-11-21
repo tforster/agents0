@@ -75,9 +75,15 @@ describe("timetracker skill", () => {
   });
 
   it("offers only the tracker's service categories", () => {
-    for (const service of ["dev", "documentation", "debugging", "design", "devops", "general admin", "education"]) {
+    for (const service of ["dev", "documentation", "debugging", "design", "devops", "meeting", "general admin", "education"]) {
       assert.match(skill, new RegExp(`\`${service}\``), `no ${service} service`);
     }
+  });
+
+  it("makes each meeting its own entry with the meeting service", () => {
+    const [, entries = ""] = skill.split(/^## 4\. Build entries$/m);
+    assert.match(entries, /Each meeting is its own entry/);
+    assert.match(entries, /service `meeting`/);
   });
 
   it("searches Jira with currentUser() in plain fields, as the jira skill does, not updatedBy()", () => {

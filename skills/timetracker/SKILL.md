@@ -133,15 +133,16 @@ One entry per day per ticket. A ticket touched on three days is three entries. O
   - a meeting with `cpc-ccp.com` attendees
 
   The user's own repos and Paca projects (agents0, dev0, side projects) are `Personal`.
-- **Service**: the one most likely category, picked from `dev`, `documentation`, `debugging`, `design`, `devops`, `general admin` and `education`.
+- **Service**: the one most likely category, picked from `dev`, `documentation`, `debugging`, `design`, `devops`, `meeting`, `general admin` and `education`.
   - Choose by what the day's work was. Fixing a defect is `debugging`. Infrastructure, CI or a release is `devops`. Blueprints and ADRs are `design`. Docs and READMEs are `documentation`. Training, research or learning is `education`.
-  - Management work is `general admin`.
+  - Every meeting is `meeting`. Management work outside meetings is `general admin`.
 - **Ticket**: the Jira or Paca key, then the ticket's own summary from Jira or Paca, not a paraphrase, all on one line.
   - Work with no ticket uses `NO-TICKET`, followed by the repo, folder or meeting subject, so the user can assign it.
   - Child tickets of one parent touched on the same day fold into one entry under the parent, with the child keys named in the description. This stops a day of closing subtasks from turning into dozens of entries.
 - **Description**: Markdown bullets saying what was done that day, past tense and outcome first: `Fixed trailing punctuation in blueprint URLs`, not `Worked on jira.mjs`.
   - Use at most five bullets. Merge evidence from every source, and drop routine noise (board moves, re-runs) when real work fills the five.
-  - Every bullet traces to a commit, PR, comment, status change, prompt, meeting or message. Never pad a thin day.
+  - Every bullet traces to a commit, PR, comment, prompt, meeting or message. Never pad a thin day.
+  - Leave out tracker housekeeping, such as moving a ticket to In Progress, ticking a checklist or closing a story. Describe the work behind it instead.
 - **Duration**: time spent, when the evidence supports it, as `1h30`.
   - A meeting's calendar length is exact.
   - Other work is estimated: the span from the first to the last evidence for the ticket that day, minus meetings inside it, rounded to 15 minutes. Mark estimates with `~`.
@@ -150,9 +151,10 @@ One entry per day per ticket. A ticket touched on three days is three entries. O
 
 Meetings and chats go to entries as follows:
 
-- One that names a ticket, or is clearly about one, adds to that ticket's entry, even hiring or policy work that has its own ticket.
-- A dev meeting with no ticket is a `NO-TICKET` entry named after the meeting.
-- All other management work for the day (non-dev meetings, team chats, sprint grooming with no meeting) goes into one entry: ticket `MANAGEMENT Team management: meetings and chat`, service `general admin`, with meeting subjects and chat topics as bullets.
+- **Each meeting is its own entry**, with service `meeting` and its exact calendar length as Duration. Other attendees log the same meeting, so its time must match theirs and never be folded into a dev entry.
+  - Ticket is the meeting's ticket when it names one or is clearly about one. Otherwise it is `MEETING`, then the meeting subject.
+  - Description gives the agenda or outcomes, from the event body or follow-up messages.
+- **Chats and other management work** outside meetings, such as Teams chats, hiring, policy or sprint grooming with no meeting, go to that work's ticket when it has one. Everything else goes into one entry for the day: ticket `MANAGEMENT Team management`, service `general admin`, with chat topics as bullets. Its duration is the chat minutes from `flow.mjs`, minus chats already counted on a ticket entry.
 
 ## 5. Output
 
