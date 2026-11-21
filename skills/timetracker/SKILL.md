@@ -1,11 +1,11 @@
 ---
 name: timetracker
-description: Build paste-ready time-tracker entries -- date, ticket and title, up to 5 bullets of work done -- from the user's Jira and Paca activity, GitHub activity and Claude Code transcripts. Use when the user asks for a time report, timesheet, time entries, hours, or "what did I work on" for a day, days or period.
+description: Build paste-ready time-tracker entries -- date, ticket and title, up to 5 bullets of work done -- from the user's Jira and Paca activity, GitHub activity, Claude Code transcripts and Outlook and Teams, plus a per-day flow summary of how meetings and chats cut into focus time. Use when the user asks for a time report, timesheet, time entries, hours, or "what did I work on" for a day, days or period.
 ---
 
 # Timetracker
 
-Reconstructs what the user worked on from the record, not from memory, and hands it back in the shape their time tracker takes: one entry per day per ticket, three fields each.
+Reconstructs what the user worked on from the record, not from memory, and hands it back in the shape their time tracker takes: one entry per day per ticket, three fields each, plus a flow summary per day showing how much management work (meetings, Teams chats) interrupted development.
 
 ## 1. Timeframe
 
@@ -54,18 +54,47 @@ J comment list ABC-123
 
 Through the Paca MCP tools. Candidates are the Paca keys from 2.1 and 2.2 (prefixes from `list_projects`), plus each project's tasks from `list_tasks` whose `Updated` falls in the range. `get_task_by_number` returns a task's activities and comments with timestamps; activities by the user may show as `Admin`.
 
-## 3. Build entries
+### 2.5. Outlook and Teams
+
+Through the Microsoft 365 MCP tools. `get_me` gives the user's address. Search the whole range at once and page through `nextOffset` until it runs out.
+
+- **Calendar**: `outlook_calendar_search` with `query: "*"`, `afterDateTime: FROM`, `beforeDateTime: TO_PLUS_ONE`, `limit: 25`. Keep events whose start falls in the range. Skip cancelled ones, `showAs: free`, and ones the user declined. An all-day event (a holiday, vacation) marks the day as off, not as a meeting.
+- **Teams**: `chat_message_search` with `query: "*"` and the same dates. Messages from anyone count, since an incoming message the user answered is an interruption. `from.email` equal to the user's address marks it as `fromMe`.
+- **Email**: `outlook_email_search` with `sender` set to the user's address and the same dates, for sent mail only. Email is async, so it adds evidence to bullets and does not count as an interruption.
+
+Times come as `{dateTime, timeZone}` wall clock. Convert them to ISO with a zone before using them (`2026-10-14T16:00:00` UTC becomes `2026-10-14T16:00:00Z`).
+
+## 3. Flow
+
+The user splits their time between development and managing the dev team, and management work interrupts their focus. The metric shows how badly. Write the range's events to a scratch JSON file and run:
+
+```bash
+node ${CLAUDE_SKILL_DIR}/scripts/flow.mjs events.json
+```
+
+The input shape is in the script header. Sort each calendar event into one of three groups:
+
+- **`meetings`**: any event with other attendees. Set `dev: true` when it is development work, such as sprint ceremonies, pairing, an architecture session, or a subject naming a ticket. A dev meeting still breaks flow, but it is not management time.
+- **`away`**: a personal block with no other attendees (dentist, lunch, errand). It takes time out of the day without being an interruption.
+- **Dropped**: a block the user booked for themselves to focus or code. Leaving it out is what lets it count as focus time.
+
+Every Teams message goes into `messages`, with the chat id as `chat`.
+
+The script groups messages in the same chat less than 15 minutes apart into one episode. It keeps only episodes the user took part in. It adds 15 minutes of recovery after each meeting and episode. Inside a 09:00 to 17:00 workday, the open gaps of 60 minutes or more count as focus time and shorter ones count as fragmented time. Pass `workday` in the input when the user names other hours.
+
+## 4. Build entries
 
 One entry per day per ticket. A ticket touched on three days is three entries.
 
 - **Title** is the ticket's own summary from Jira or Paca, not a paraphrase.
 - **Bullets** say what was done that day, in past tense and outcome first: `Fixed trailing punctuation in blueprint URLs`, not `Worked on jira.mjs`. Merge evidence from every source into at most five; drop routine noise (board moves, re-runs) when real work fills the five.
 - **Only evidenced work.** Every bullet traces to a commit, PR, comment, status change or prompt. Never pad a thin day.
+- **Meetings and chats** that name a ticket, or that are clearly about one, add bullets to that ticket's entry. All other management work for the day (non-dev meetings, team chats, hiring, policy) goes into one entry with ticket `MANAGEMENT` and title `Team management: meetings and chat`. Its bullets are the meeting subjects and chat topics, outcome first.
 - **Work with no ticket** gets an entry with ticket `NO-TICKET` and the project folder or repo as its title, so the user can assign it.
 
 Order entries by date, then ticket key.
 
-## 4. Output
+## 5. Output
 
 The user's time tracker takes **Date**, **Ticket and title** and **Bullets** as separate fields, so each field is its own fenced block, copyable alone. Bold field labels, no table: a table cell cannot hold bullets that paste cleanly. Every entry has at most 5 bullets.
 
@@ -92,5 +121,13 @@ AGEN-54 timetracker skill: daily time entries from Jira, Paca, GitHub and Claude
 - Opened PR #12
 ```
 ````
+
+After each day's entries comes a **Flow** block for that day, built from `flow.mjs`. It is a fenced `text` block, so it can be pasted into the tracker's notes:
+
+```text
+Flow 2026-10-14: 3 interruptions (2 meetings 55m, 1 chat 5m) · management 1h00 · focus 5h55 in 2 blocks, longest 4h15 · fragmented 50m
+```
+
+After the last day, add one range summary line: total management hours, total focus hours, interruptions per day, and the share of the workday left as focus time.
 
 After the entries, one line names any source that was skipped and why, and any `NO-TICKET` entries to assign.
