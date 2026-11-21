@@ -1,7 +1,8 @@
 // timetracker.test.js — guards the timetracker skill (AGEN-54)
 //
 // skills/timetracker/scripts/claude-log.mjs runs as a real child process against a throwaway CLAUDE_CONFIG_DIR holding
-// fabricated transcripts, with TZ pinned so local-day bucketing is deterministic.
+// fabricated transcripts, and flow.mjs against a throwaway events file, both with TZ pinned so local-day bucketing is
+// deterministic.
 
 // System dependencies
 import { strict as assert } from "node:assert";
@@ -14,6 +15,7 @@ import path from "node:path";
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const skillFile = path.join(repoRoot, "skills", "timetracker", "SKILL.md");
 const logScript = path.join(repoRoot, "skills", "timetracker", "scripts", "claude-log.mjs");
+const flowScript = path.join(repoRoot, "skills", "timetracker", "scripts", "flow.mjs");
 
 /**
  * Builds one transcript line as Claude Code writes it.
@@ -63,20 +65,45 @@ describe("timetracker skill", () => {
     assert.ok(skill.indexOf("## 1. Timeframe") < skill.indexOf("## 2. Collect"), "the timeframe is not settled before collecting");
   });
 
-  it("AGEN-54 AC2: each entry is date, ticket and title, and at most 5 bullets, as separate copyable fields", () => {
+  it("AGEN-54 AC2: each entry is client, service, ticket, description, duration and date, one field per line", () => {
     const [, output = ""] = skill.split(/^## \d+\. Output$/m);
-    for (const field of ["Date", "Ticket and title", "Bullets"]) {
-      assert.match(output, new RegExp(`\\*\\*${field}\\*\\*`), `the output has no ${field} field`);
-    }
-    assert.match(output, /at most 5 bullets/i);
-    assert.match(output, /own fenced block/i, "fields are not separately copyable");
+    const fields = ["Client/Project", "Service", "Ticket", "Description", "Duration", "Date"];
+    const positions = fields.map((field) => output.search(new RegExp(`^${field}:`, "m")));
+    assert.ok(!positions.includes(-1), `the example lacks a field: ${fields.filter((_, i) => positions[i] === -1)}`);
+    assert.deepStrictEqual([...positions].sort((a, b) => a - b), positions, "fields are out of the tracker's order");
+    assert.match(output, /one field per line/i);
   });
 
-  it("AGEN-54 AC3: names Jira, Paca, GitHub and Claude transcripts as sources", () => {
+  it("offers only the tracker's service categories", () => {
+    for (const service of ["dev", "documentation", "debugging", "design", "devops", "meeting", "general admin", "education"]) {
+      assert.match(skill, new RegExp(`\`${service}\``), `no ${service} service`);
+    }
+  });
+
+  it("makes each meeting its own entry with the meeting service", () => {
+    const [, entries = ""] = skill.split(/^## 4\. Build entries$/m);
+    assert.match(entries, /Each meeting is its own entry/);
+    assert.match(entries, /service `meeting`/);
+  });
+
+  it("searches Jira with currentUser() in plain fields, as the jira skill does, not updatedBy()", () => {
+    const [, jira = ""] = skill.split(/^### 2\.3\. Jira$/m);
+    const [commands = ""] = jira.split(/^### /m);
+    assert.doesNotMatch(commands, /J search '[^']*updatedBy\(/, "updatedBy(currentUser()) is rejected by Jira");
+    assert.match(commands, /assignee = currentUser\(\)/);
+  });
+
+  it("AGEN-54 AC3: names Jira, Paca, GitHub, Claude transcripts, Outlook and Teams as sources", () => {
     const [, collect = ""] = skill.split(/^## 2\. Collect$/m);
-    for (const source of ["Jira", "Paca", "GitHub", "Claude transcripts"]) {
+    for (const source of ["Jira", "Paca", "GitHub", "Claude transcripts", "Outlook and Teams"]) {
       assert.match(collect, new RegExp(`### 2\\.\\d+\\. ${source}`), `no ${source} source`);
     }
+  });
+
+  it("reports a per-day flow summary of meetings, chats and focus time", () => {
+    const [, output = ""] = skill.split(/^## \d+\. Output$/m);
+    assert.match(output, /\*\*Flow\*\*/, "the output has no Flow summary");
+    assert.match(skill, /flow\.mjs/, "the skill does not run flow.mjs");
   });
 });
 
@@ -131,5 +158,67 @@ describe("claude-log.mjs", () => {
     const result = run([], ["yesterday"]);
     assert.notStrictEqual(result.status, 0);
     assert.match(result.stderr, /YYYY-MM-DD/);
+  });
+});
+
+/**
+ * Writes an events file and runs flow.mjs over it.
+ *
+ * @param {unknown} events - The input document.
+ * @returns {import("node:child_process").SpawnSyncReturns<string>} The finished process.
+ */
+function flow(events) {
+  const file = path.join(mkdtempSync(path.join(tmpdir(), "timetracker-flow-")), "events.json");
+  writeFileSync(file, JSON.stringify(events));
+  return spawnSync("node", [flowScript, file], { encoding: "utf8", env: { ...process.env, TZ: "America/Toronto" } });
+}
+
+describe("flow.mjs", () => {
+  it("counts meetings and answered chats as interruptions and leaves focus time between them", () => {
+    const result = flow({
+      // Toronto is UTC-4 in October: 13:00Z is 09:00 local.
+      meetings: [{ start: "2026-10-14T15:50:00Z", end: "2026-10-14T16:30:00Z", title: "Hiring brief" }],
+      messages: [
+        { at: "2026-10-14T14:40:00Z", chat: "c1", fromMe: false },
+        { at: "2026-10-14T14:41:00Z", chat: "c1", fromMe: true },
+        // Unanswered, so possibly never read: not an interruption.
+        { at: "2026-10-14T19:00:00Z", chat: "c2", fromMe: false },
+      ],
+    });
+    assert.strictEqual(result.status, 0, result.stderr);
+    const [day] = JSON.parse(result.stdout).days;
+
+    // Busy 10:40-11:00 (chat, minimum 5, plus 15 recovery) and 11:50-12:45 (meeting plus recovery).
+    assert.deepStrictEqual(day, {
+      date: "2026-10-14",
+      meetings: { count: 1, minutes: 40 },
+      chats: { episodes: 1, sent: 1, minutes: 5 },
+      interruptions: 2,
+      managementMinutes: 45,
+      awayMinutes: 0,
+      focusMinutes: 355,
+      focusBlocks: 2,
+      longestFocusMinutes: 255,
+      fragmentedMinutes: 50,
+    });
+  });
+
+  it("keeps dev meetings out of management time and away time out of focus time", () => {
+    const result = flow({
+      meetings: [{ start: "2026-10-15T13:00:00Z", end: "2026-10-15T14:00:00Z", title: "Sprint planning", dev: true }],
+      away: [{ start: "2026-10-15T14:00:00Z", end: "2026-10-15T16:20:00Z", title: "Dentist" }],
+    });
+    assert.strictEqual(result.status, 0, result.stderr);
+    const [day] = JSON.parse(result.stdout).days;
+    assert.strictEqual(day.managementMinutes, 0);
+    assert.strictEqual(day.awayMinutes, 140);
+    assert.strictEqual(day.focusMinutes, 280);
+    assert.strictEqual(day.interruptions, 1);
+  });
+
+  it("rejects a timestamp with no zone", () => {
+    const result = flow({ meetings: [{ start: "2026-10-14T16:00:00.0000000", end: "2026-10-14T16:30:00Z" }] });
+    assert.notStrictEqual(result.status, 0);
+    assert.match(result.stderr, /no zone/);
   });
 });
