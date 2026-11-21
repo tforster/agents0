@@ -65,13 +65,26 @@ describe("timetracker skill", () => {
     assert.ok(skill.indexOf("## 1. Timeframe") < skill.indexOf("## 2. Collect"), "the timeframe is not settled before collecting");
   });
 
-  it("AGEN-54 AC2: each entry is date, ticket and title, and at most 5 bullets, as separate copyable fields", () => {
+  it("AGEN-54 AC2: each entry is client, service, ticket, description, duration and date, one field per line", () => {
     const [, output = ""] = skill.split(/^## \d+\. Output$/m);
-    for (const field of ["Date", "Ticket and title", "Bullets"]) {
-      assert.match(output, new RegExp(`\\*\\*${field}\\*\\*`), `the output has no ${field} field`);
+    const fields = ["Client/Project", "Service", "Ticket", "Description", "Duration", "Date"];
+    const positions = fields.map((field) => output.search(new RegExp(`^${field}:`, "m")));
+    assert.ok(!positions.includes(-1), `the example lacks a field: ${fields.filter((_, i) => positions[i] === -1)}`);
+    assert.deepStrictEqual([...positions].sort((a, b) => a - b), positions, "fields are out of the tracker's order");
+    assert.match(output, /one field per line/i);
+  });
+
+  it("offers only the tracker's service categories", () => {
+    for (const service of ["dev", "documentation", "debugging", "design", "devops", "general admin", "education"]) {
+      assert.match(skill, new RegExp(`\`${service}\``), `no ${service} service`);
     }
-    assert.match(output, /at most 5 bullets/i);
-    assert.match(output, /own fenced block/i, "fields are not separately copyable");
+  });
+
+  it("searches Jira with currentUser() in plain fields, as the jira skill does, not updatedBy()", () => {
+    const [, jira = ""] = skill.split(/^### 2\.3\. Jira$/m);
+    const [commands = ""] = jira.split(/^### /m);
+    assert.doesNotMatch(commands, /J search '[^']*updatedBy\(/, "updatedBy(currentUser()) is rejected by Jira");
+    assert.match(commands, /assignee = currentUser\(\)/);
   });
 
   it("AGEN-54 AC3: names Jira, Paca, GitHub, Claude transcripts, Outlook and Teams as sources", () => {
