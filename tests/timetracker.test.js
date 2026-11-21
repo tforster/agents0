@@ -91,6 +91,13 @@ describe("timetracker skill", () => {
     const [commands = ""] = jira.split(/^### /m);
     assert.doesNotMatch(commands, /J search '[^']*updatedBy\(/, "updatedBy(currentUser()) is rejected by Jira");
     assert.match(commands, /assignee = currentUser\(\)/);
+    assert.doesNotMatch(commands, /updated >= "FROM"(?! AND updated < )/, "an open-ended updated search pulls in the backlog");
+  });
+
+  it("estimates duration from activity clusters split at gaps over 60 minutes", () => {
+    const [, entries = ""] = skill.split(/^## 4\. Build entries$/m);
+    assert.match(entries, /more than 60 minutes apart/);
+    assert.match(entries, /15-minute minimum/);
   });
 
   it("AGEN-54 AC3: names Jira, Paca, GitHub, Claude transcripts, Outlook and Teams as sources", () => {

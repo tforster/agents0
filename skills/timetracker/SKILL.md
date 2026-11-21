@@ -38,6 +38,8 @@ The script prints JSON per day, per project directory:
 - `first` and `last` prompt times
 - the human `prompts`, each cut to 300 characters
 
+Claude Code deletes transcripts after `cleanupPeriodDays` (30 by default). For a range older than that, expect nothing and lean on the other sources. Run the script early in a session that may cross a cleanup.
+
 Run it first. Its ticket keys seed the Jira and Paca lookups, and its prompts say what each session was for. Some keys are false positives (`UTF-8`, `SHA-256`), so keep only those Jira or Paca confirm.
 
 ### 2.2. GitHub
@@ -51,6 +53,7 @@ gh search prs --involves="$login" --updated=">=FROM" --json repository,number,ti
 - **PR search has no upper bound on purpose.** A PR worked on in the range and updated again after it would otherwise be missed. For each PR, keep only the activity whose date falls in the range: when it was created or closed, plus its commits.
 - **Ticket keys** come from commit messages, PR titles (`(Re: AGEN-54)`) and branch names.
 - **Commit search covers default branches only**, so open PRs carry the unmerged work.
+- **Mirror repos** (the same history pushed to two remotes) return each commit twice. Deduplicate by `sha`.
 - **Accounts:** search every account `gh auth status` lists, switching with `gh auth switch`.
 
 ### 2.3. Jira
@@ -58,12 +61,14 @@ gh search prs --involves="$login" --updated=">=FROM" --json repository,number,ti
 `J` is `node ${CLAUDE_SKILL_DIR}/../jira/scripts/jira.mjs`; the `jira` skill covers its setup. Use plain JQL fields with `currentUser()`, as that skill does. Jira history functions such as `updatedBy()` reject `currentUser()`. Where `J` has no credentials, run the same JQL through the Atlassian MCP tools.
 
 ```bash
-J search '(assignee = currentUser() OR reporter = currentUser()) AND updated >= "FROM" ORDER BY updated DESC' --max 100
+J search 'status CHANGED BY currentUser() DURING ("FROM", "TO_PLUS_ONE")' --max 100
+J search 'reporter = currentUser() AND created >= "FROM" AND created < "TO_PLUS_ONE"' --max 100
+J search 'assignee = currentUser() AND updated >= "FROM" AND updated < "TO_PLUS_ONE"' --max 100
 J search 'worklogAuthor = currentUser() AND worklogDate >= "FROM" AND worklogDate <= "TO"' --max 100
 J comment list ABC-123
 ```
 
-Add the keys found in sections 2.1, 2.2 and 2.4 that these searches missed. For each issue, these say what the user did and when:
+`TO_PLUS_ONE` is the day after `TO`. An open-ended `updated >= FROM` pulls in the whole backlog, so bound every search to the range. JQL cannot search by commenter, so add the keys found in sections 2.1, 2.2 and 2.4 that these searches missed. For each issue, these say what the user did and when:
 
 - the user's own comments
 - status and field changes, from the Atlassian MCP `getJiraIssue` with the changelog expanded
@@ -138,15 +143,18 @@ One entry per day per ticket. A ticket touched on three days is three entries. O
   - Every meeting is `meeting`. Management work outside meetings is `general admin`.
 - **Ticket**: the Jira or Paca key, then the ticket's own summary from Jira or Paca, not a paraphrase, all on one line.
   - Work with no ticket uses `NO-TICKET`, followed by the repo, folder or meeting subject, so the user can assign it.
-  - Child tickets of one parent touched on the same day fold into one entry under the parent, with the child keys named in the description. This stops a day of closing subtasks from turning into dozens of entries.
+  - When two or more children of the same direct parent are touched on the same day, they fold into one entry under that parent, with the child keys named in the description. Do not fold a single child, and do not fold past the direct parent. Folding stops a day of closing subtasks from turning into dozens of entries.
+  - Planning across many unrelated tickets (creating or re-planning epics, grooming) is one entry, not one per ticket. It goes to `MANAGEMENT`, or to the epic when only one is involved.
 - **Description**: Markdown bullets saying what was done that day, past tense and outcome first: `Fixed trailing punctuation in blueprint URLs`, not `Worked on jira.mjs`.
   - Use at most five bullets. Merge evidence from every source, and drop routine noise (board moves, re-runs) when real work fills the five.
   - Every bullet traces to a commit, PR, comment, prompt, meeting or message. Never pad a thin day.
   - Leave out tracker housekeeping, such as moving a ticket to In Progress, ticking a checklist or closing a story. Describe the work behind it instead.
 - **Duration**: time spent, when the evidence supports it, as `1h30`.
   - A meeting's calendar length is exact.
-  - Other work is estimated: the span from the first to the last evidence for the ticket that day, minus meetings inside it, rounded to 15 minutes. Mark estimates with `~`.
-  - With a single timestamp or none, leave the field blank. Never invent one.
+  - Other work is estimated from the ticket's timestamps that day. Split them into clusters wherever two are more than 60 minutes apart, add up the cluster spans, take out any meetings inside them, and round up to the next 15 minutes, with a 15-minute minimum. Mark estimates with `~`.
+  - A lone timestamp far from the rest, such as a late comment logging earlier work, is not a cluster.
+  - With no timestamps for the ticket that day, leave the field blank. Never invent one.
+  - These estimates measure when the user was active, not how long agents worked between prompts. Parallel sessions also overlap, so a day's estimates can add up to more than the clock. Say so in the day's Flow line when they do.
 - **Date**: local `YYYY-MM-DD`.
 
 Meetings and chats go to entries as follows:
@@ -154,7 +162,7 @@ Meetings and chats go to entries as follows:
 - **Each meeting is its own entry**, with service `meeting` and its exact calendar length as Duration. Other attendees log the same meeting, so its time must match theirs and never be folded into a dev entry.
   - Ticket is the meeting's ticket when it names one or is clearly about one. Otherwise it is `MEETING`, then the meeting subject.
   - Description gives the agenda or outcomes, from the event body or follow-up messages.
-- **Chats and other management work** outside meetings, such as Teams chats, hiring, policy or sprint grooming with no meeting, go to that work's ticket when it has one. Everything else goes into one entry for the day: ticket `MANAGEMENT Team management`, service `general admin`, with chat topics as bullets. Its duration is the chat minutes from `flow.mjs`, minus chats already counted on a ticket entry.
+- **Chats and other management work** outside meetings, such as Teams chats, hiring, policy or sprint grooming with no meeting, go to that work's ticket when it has one. Everything else goes into one entry for the day: ticket `MANAGEMENT Team management`, service `general admin`, with chat topics as bullets. Its duration is the chat minutes from `flow.mjs`, minus chats already counted on a ticket entry, plus the estimated span of any management work done in a tracker (grooming, roadmap planning). Work done in a tracker is not on the calendar, so `flow.mjs` counts it as focus time. Say so in that day's Flow line.
 
 ## 5. Output
 
