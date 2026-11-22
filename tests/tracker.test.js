@@ -266,15 +266,15 @@ describe("tracker skill", () => {
     assert.match(stdout, /ABC-10 is now a child of ABC-1/);
   });
 
-  it("AC8: link creates a Blocks link with the blocker outward and the blocked issue inward", () => {
+  it("AC8: link creates a Blocks link with the blocker as inwardIssue and the blocked issue as outwardIssue, which Jira reads as blocker blocks blocked", () => {
     const { requests, stdout } = runJira(["link", "ABC-10", "ABC-11"], {
       routes: [{ method: "POST", path: "/issueLink", status: 201 }],
     });
 
     assert.deepStrictEqual(requests[0].body, {
       type: { name: "Blocks" },
-      outwardIssue: { key: "ABC-10" },
-      inwardIssue: { key: "ABC-11" },
+      inwardIssue: { key: "ABC-10" },
+      outwardIssue: { key: "ABC-11" },
     });
     assert.match(stdout, /ABC-10 blocks ABC-11/);
   });
