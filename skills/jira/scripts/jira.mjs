@@ -558,8 +558,10 @@ async function setParent(key, epicKey) {
 }
 
 /**
- * Create a "Blocks" link. In Jira's Blocks type the outward side reads "blocks" and the inward side
- * "is blocked by", so the blocker is the outwardIssue and the blocked issue the inwardIssue.
+ * Create a "Blocks" link. The REST API's naming is counter-intuitive: POST /issueLink reads as
+ * "inwardIssue <outward description> outwardIssue", so for the Blocks type the blocker goes in
+ * inwardIssue and the blocked issue in outwardIssue. The reverse mapping silently records
+ * "blocked blocks blocker" (verified against a live Jira Cloud site, 2026-11-22).
  *
  * @param {string} blockerKey - Issue that blocks.
  * @param {string} blockedKey - Issue that is blocked.
@@ -567,8 +569,8 @@ async function setParent(key, epicKey) {
 async function linkBlocks(blockerKey, blockedKey) {
   await api("POST", "/issueLink", {
     type: { name: "Blocks" },
-    outwardIssue: { key: blockerKey },
-    inwardIssue: { key: blockedKey },
+    inwardIssue: { key: blockerKey },
+    outwardIssue: { key: blockedKey },
   });
   console.log(`✓ ${blockerKey} blocks ${blockedKey}`);
 }
